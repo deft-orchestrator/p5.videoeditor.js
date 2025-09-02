@@ -1,17 +1,14 @@
 /*
- * P5.VIDEOEDITOR.JS (v3.3) - The Motion Design Framework
+ * P5.VIDEOEDITOR.JS (v3.4) - The Motion Design Framework
  * Sebuah framework canggih untuk membuat video berbasis kode di p5.js.
  *
- * * FITUR BARU (v3.3):
- * 1. PERBAIKAN MASKING: Logika pembaruan (update) pada klip topeng kini
- * disinkronkan dengan benar dengan klip induknya, memperbaiki bug waktu dan siklus hidup.
- * 2. BUFFER GRAFIS ROBUST: Buffer untuk masking kini akan dibuat ulang secara
- * otomatis jika ukuran kanvas berubah, mencegah masalah render.
+ * * FITUR BARU (v3.4):
+ * 1. PENYEMPURNAAN KODE: Menyederhanakan pemanggilan render di dalam logika
+ * masking untuk meningkatkan keterbacaan tanpa mengubah fungsionalitas.
  *
- * * FITUR SEBELUMNYA (v3.2):
- * - TRANSISI: Memperkenalkan `timeline.addTransition()` dengan `CrossFadeTransition`.
- * - MASKING: Klip visual dapat memiliki topeng (`clip.setMask(maskClip)`).
- * - EFEK SHADER (GLSL): Menambahkan `ShaderEffectClip` sebagai lapisan penyesuaian.
+ * * FITUR SEBELUMNYA (v3.3):
+ * - PERBAIKAN MASKING: Sinkronisasi waktu dan siklus hidup klip topeng.
+ * - BUFFER GRAFIS ROBUST: Buffer masking kini menyesuaikan diri dengan ukuran kanvas.
  */
 
 // =============================================================================
@@ -230,12 +227,12 @@ class VisualClip extends BaseClip {
     this._contentGfx.push();
     this._contentGfx.translate(this.props.x, this.props.y);
     // ... (transformasi lainnya)
-    this.display.call({ props: this.props, ...this}); // Render konten
+    this.display(); // Disederhanakan dari .call()
     this._contentGfx.pop();
 
     // 2. Gambar topeng ke buffer topeng
     this._maskGfx.clear();
-    this.mask.render.call(this.mask); // Render topeng
+    this.mask.render(); // Disederhanakan dari .call()
 
     // 3. Aplikasikan topeng
     let maskedContent = this._contentGfx.get();
