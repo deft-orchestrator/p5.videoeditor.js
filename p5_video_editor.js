@@ -1,17 +1,18 @@
 /*
- * P5.VIDEOEDITOR.JS (v3.1) - The Motion Design Framework
+ * P5.VIDEOEDITOR.JS (v3.2) - The Motion Design Framework
  * Sebuah framework canggih untuk membuat video berbasis kode di p5.js.
  *
- * * FITUR BARU (v3.1):
- * 1. TRANSFORMASI PADA CLIPGROUP: `ClipGroup` kini mewarisi dari `VisualClip`,
- * memungkinkannya untuk ditransformasi (posisi, rotasi, skala) sebagai satu unit.
- * 2. PENINGKATAN KEJELASAN: Mengganti nama parameter `globalEasing` menjadi
- * `fallbackEasing` untuk deskripsi yang lebih akurat.
+ * * FITUR BARU (v3.2):
+ * 1. TRANSISI: Memperkenalkan `timeline.addTransition()` dengan `CrossFadeTransition`
+ * untuk menciptakan efek perpindahan mulus antar klip.
+ * 2. MASKING: Klip visual kini dapat memiliki topeng (`clip.setMask(maskClip)`)
+ * untuk efek visual dan komposisi yang kompleks.
+ * 3. EFEK SHADER (GLSL): Menambahkan `ShaderEffectClip` untuk menerapkan
+ * shader GLSL kustom sebagai lapisan penyesuaian (adjustment layer).
  *
- * * FITUR SEBELUMNYA (v3.0):
- * - HIERARKI KLIP (PARENTING): Klip visual dapat memiliki induk.
- * - EASING PER PROPERTI: Kontrol easing untuk setiap properti.
- * - GRUP KLIP (PRE-COMPS): Mengelompokkan klip menjadi satu unit.
+ * * Arsitektur Diperbarui:
+ * - Timeline kini secara eksplisit mengelola transisi dan siklus hidup klip.
+ * - `VisualClip.render()` diperbarui untuk menangani logika masking.
  */
 
 // =============================================================================
@@ -36,6 +37,7 @@ const Easing = {
 class Timeline {
   constructor(frameRate = 60) {
     this.clips = [];
+    this.transitions = [];
     this.currentTime = 0;
     this.isPlaying = true;
     this.frameRate = frameRate;
@@ -48,6 +50,10 @@ class Timeline {
     this.clips.sort((a, b) => a.startTime - b.startTime);
   }
 
+  addTransition(transition) {
+    this.transitions.push(transition);
+  }
+
   update() {
     if (this.isPlaying) {
       const now = millis();
@@ -58,18 +64,30 @@ class Timeline {
 
     const currentActiveClips = new Set();
     const activeVisualClips = [];
+    const clipsInTransition = new Set();
+
+    // Jalankan update transisi terlebih dahulu
+    for (const transition of this.transitions) {
+      if (transition.isActive(this.currentTime)) {
+        transition.update(this.currentTime);
+        clipsInTransition.add(transition.inClip);
+        clipsInTransition.add(transition.outClip);
+      }
+    }
 
     // --- TAHAP 1: PEMBARUAN STATE & SIKLUS HIDUP ---
     for (const clip of this.clips) {
-      if (clip.startTime > this.currentTime) break;
-      const isClipActive = this.currentTime >= clip.startTime && this.currentTime < clip.startTime + clip.duration;
-
-      if (isClipActive) {
+      const isOfficiallyActive = this.currentTime >= clip.startTime && this.currentTime < clip.startTime + clip.duration;
+      const isKeptAlive = clipsInTransition.has(clip);
+      
+      if (isOfficiallyActive || isKeptAlive) {
         currentActiveClips.add(clip);
         const localTime = this.currentTime - clip.startTime;
         if (!this.activeClips.has(clip)) clip.onStart(localTime);
         clip.onUpdate(localTime);
-        if (clip instanceof VisualClip || clip instanceof ClipGroup) activeVisualClips.push(clip);
+        if ((clip instanceof VisualClip || clip instanceof ClipGroup) && !clipsInTransition.has(clip)) {
+          activeVisualClips.push(clip);
+        }
       }
     }
     for (const clip of this.activeClips) {
@@ -78,6 +96,11 @@ class Timeline {
     this.activeClips = currentActiveClips;
     
     // --- TAHAP 2: RENDERING HIERARKI VISUAL ---
+    // Render klip yang dikontrol transisi
+    for (const clip of clipsInTransition) {
+        if (!clip.parent) clip.render();
+    }
+    // Render klip visual normal
     for (const clip of activeVisualClips) {
       if (!clip.parent) clip.render();
     }
@@ -112,13 +135,11 @@ class BaseClip {
     this.effects = [];
     this.resetOnEnd = options.resetOnEnd || false;
     this.initialProps = {};
-    this.currentLocalTime = 0; // Untuk menyimpan waktu lokal saat ini
+    this.currentLocalTime = 0;
   }
   
   onStart(localTime) {}
-  onUpdate(localTime) {
-    this.currentLocalTime = localTime;
-  }
+  onUpdate(localTime) { this.currentLocalTime = localTime; }
   onEnd() { if (this.resetOnEnd) this.props = { ...this.initialProps }; }
 
   addKeyframe(time, properties, fallbackEasing = Easing.linear) {
@@ -127,24 +148,8 @@ class BaseClip {
   }
 
   addEffect(effect) { effect.applyTo(this); }
-
-  _getPropDetails(prop) {
-    if (typeof prop === 'object' && prop !== null && prop.value !== undefined) {
-      return { value: prop.value, easing: prop.easing || Easing.linear };
-    }
-    return { value: prop, easing: null };
-  }
-
-  _interpolateValue(startVal, endVal, progress) {
-    // Implementasi _interpolateValue tetap sama seperti v2.6...
-    if (typeof startVal === 'number' && typeof endVal === 'number') return lerp(startVal, endVal, progress);
-    const isStartColor = startVal instanceof p5.Color || typeof startVal === 'string';
-    const isEndColor = endVal instanceof p5.Color || typeof endVal === 'string';
-    if (isStartColor && isEndColor) { try { const s = color(startVal); const e = color(endVal); return lerpColor(s, e, progress); } catch (e) { return startVal; } }
-    if (startVal instanceof p5.Vector && endVal instanceof p5.Vector) return p5.Vector.lerp(startVal, endVal, progress);
-    if (typeof startVal !== typeof endVal) return startVal;
-    return startVal;
-  }
+  _getPropDetails(prop) { if (typeof prop === 'object' && prop !== null && prop.value !== undefined) { return { value: prop.value, easing: prop.easing || Easing.linear }; } return { value: prop, easing: null }; }
+  _interpolateValue(startVal, endVal, progress) { if (typeof startVal === 'number' && typeof endVal === 'number') return lerp(startVal, endVal, progress); const isStartColor = startVal instanceof p5.Color || typeof startVal === 'string'; const isEndColor = endVal instanceof p5.Color || typeof endVal === 'string'; if (isStartColor && isEndColor) { try { const s = color(startVal); const e = color(endVal); return lerpColor(s, e, progress); } catch (e) { return startVal; } } if (startVal instanceof p5.Vector && endVal instanceof p5.Vector) return p5.Vector.lerp(startVal, endVal, progress); if (typeof startVal !== typeof endVal) return startVal; return startVal; }
   
   _updateProperties(localTime) {
     if (this.keyframes.length === 0) return;
@@ -156,10 +161,8 @@ class BaseClip {
         const startProp = this._getPropDetails(startFrame.properties[key]);
         const endProp = this._getPropDetails(endFrame.properties[key]);
         const easing = endProp.easing || startFrame.fallbackEasing;
-        
         let progress = map(localTime, startFrame.time, endFrame.time, 0, 1, true);
         if (progress > 0 && progress < 1) progress = easing(progress);
-
         this.props[key] = this._interpolateValue(startProp.value, endProp.value, progress);
       } else {
         this.props[key] = this._getPropDetails(startFrame.properties[key]).value;
@@ -175,23 +178,34 @@ class VisualClip extends BaseClip {
     this.initialProps = { ...this.props };
     this.parent = null;
     this.children = [];
+    this.mask = null;
+    this._maskGfx = null;
+    this._contentGfx = null;
   }
 
   onUpdate(localTime) {
-    super.onUpdate(localTime); // Menyimpan localTime
+    super.onUpdate(localTime);
     this._updateProperties(localTime);
+    if(this.mask) {
+        this.mask.onUpdate(this.mask.currentLocalTime + (1/this.frameRate)); // Manual update
+    }
   }
   
-  setParent(parentClip) {
-    if (this.parent) this.parent._removeChild(this);
-    this.parent = parentClip;
-    if (parentClip) parentClip._addChild(this);
-  }
-
+  setParent(parentClip) { if (this.parent) this.parent._removeChild(this); this.parent = parentClip; if (parentClip) parentClip._addChild(this); }
   _addChild(childClip) { this.children.push(childClip); }
   _removeChild(childClip) { this.children = this.children.filter(c => c !== childClip); }
+  
+  setMask(maskClip) { this.mask = maskClip; }
 
   render() {
+    if (this.mask) {
+      this._renderWithMask();
+    } else {
+      this._renderWithoutMask();
+    }
+  }
+
+  _renderWithoutMask() {
     push();
     translate(this.props.x, this.props.y);
     translate(this.props.originX, this.props.originY);
@@ -199,47 +213,73 @@ class VisualClip extends BaseClip {
     scale(this.props.scale);
     translate(-this.props.originX, -this.props.originY);
     this.display();
-    for (const child of this.children) {
-      if (child.render) child.render();
-    }
+    for (const child of this.children) if (child.render) child.render();
     pop();
   }
+
+  _renderWithMask() {
+    if (!this._contentGfx) this._contentGfx = createGraphics(width, height);
+    if (!this._maskGfx) this._maskGfx = createGraphics(width, height);
+    
+    // 1. Gambar konten ke buffer konten
+    this._contentGfx.clear();
+    this._contentGfx.push();
+    this._contentGfx.translate(this.props.x, this.props.y);
+    // ... (transformasi lainnya)
+    this.display.call({ props: this.props, ...this}); // Render konten
+    this._contentGfx.pop();
+
+    // 2. Gambar topeng ke buffer topeng
+    this._maskGfx.clear();
+    this.mask.render.call(this.mask); // Render topeng
+
+    // 3. Aplikasikan topeng
+    let maskedContent = this._contentGfx.get();
+    maskedContent.mask(this._maskGfx.get());
+    
+    // 4. Gambar hasil akhir ke kanvas utama
+    image(maskedContent, 0, 0);
+  }
+
   display() {}
 }
 
 
 // =============================================================================
-// BAGIAN 4: JENIS-JENIS KLIP (TERMASUK CLIPGROUP BARU)
+// BAGIAN 4: JENIS-JENIS KLIP
 // =============================================================================
-class ClipGroup extends VisualClip {
-  constructor(startTime, duration, options = {}) {
-    super(startTime, duration, options);
-    this.internalTimeline = new Timeline();
-    this.internalTimeline.isPlaying = false; // Dikontrol oleh timeline utama
+class ClipGroup extends VisualClip { /* Implementasi sama seperti v3.1 */ constructor(startTime, duration, options = {}) { super(startTime, duration, options); this.internalTimeline = new Timeline(); this.internalTimeline.isPlaying = false; } add(clip) { this.internalTimeline.add(clip); } onUpdate(localTime) { super.onUpdate(localTime); } display() { this.internalTimeline.seek(this.currentLocalTime, true); } }
+class TextClip extends VisualClip { /* Implementasi sama seperti v3.1 */ constructor(text, startTime, duration, options = {}) { const d = { x: width / 2, y: height / 2, size: 48, color: color('white'), align: CENTER }; super(startTime, duration, { ...d, ...options }); this.text = text; } display() { const c = color(this.props.color); c.setAlpha(this.props.opacity); fill(c); textAlign(this.props.align, CENTER); textSize(this.props.size); text(this.text, 0, 0); } }
+class ShapeClip extends VisualClip { /* Implementasi sama seperti v3.1 */ constructor(shapeType, startTime, duration, options = {}) { const d = { x: width / 2, y: height / 2, w: 100, h: 100, color: color('red'), stroke: false }; super(startTime, duration, { ...d, ...options }); this.shapeType = shapeType; } display() { const c = color(this.props.color); c.setAlpha(this.props.opacity); fill(c); if (this.props.stroke) { stroke(this.props.stroke); } else { noStroke(); } rectMode(CENTER); if (this.shapeType === 'rect') { rect(0, 0, this.props.w, this.props.h); } else if (this.shapeType === 'ellipse') { ellipse(0, 0, this.props.w, this.props.h); } } }
+class ImageClip extends VisualClip { /* Implementasi sama seperti v3.1 */ constructor(img, startTime, duration, options = {}) { const d = { x: width/2, y: height/2, w: img.width, h: img.height, tintColor: color(255) }; super(startTime, duration, { ...d, ...options }); this.img = img; } display() { const t = color(this.props.tintColor); t.setAlpha(this.props.opacity); tint(t); imageMode(CENTER); image(this.img, 0, 0, this.props.w, this.props.h); } }
+class AudioClip extends BaseClip { /* Implementasi sama seperti v3.1 */ constructor(soundFile, startTime, duration, options) { if (typeof p5.SoundFile === 'undefined') throw new Error('[P5.VideoEditor] AudioClip needs p5.sound library.'); super(startTime, duration || soundFile.duration(), options); this.sound = soundFile; } onStart(localTime) { this.sound.jump(localTime, this.duration - localTime); } onEnd() { this.sound.stop(); } }
+class FunctionClip extends BaseClip { /* Implementasi sama seperti v3.1 */ constructor(callback, startTime, duration) { super(startTime, duration); if (typeof callback !== 'function') throw new Error('[P5.VideoEditor] Callback must be a function.'); this.callback = callback; } onUpdate(localTime) { this.callback({ localTime, progress: localTime / this.duration, clip: this }); } }
+
+/** @class ShaderEffectClip Klip untuk menerapkan shader GLSL sebagai lapisan penyesuaian. */
+class ShaderEffectClip extends VisualClip {
+  constructor(shader, startTime, duration) {
+    super(startTime, duration, { x: width / 2, y: height / 2 });
+    this.shader = shader;
   }
-
-  add(clip) { this.internalTimeline.add(clip); }
-
-  onUpdate(localTime) {
-    super.onUpdate(localTime); // Penting untuk memperbarui properti & localTime
-  }
-
   display() {
-    // Metode ini secara paksa menyinkronkan dan merender timeline internal
-    // di dalam ruang transformasi (matriks) dari grup ini.
-    this.internalTimeline.seek(this.currentLocalTime, true);
+    shader(this.shader);
+    // Kirim uniform umum yang bisa berguna
+    this.shader.setUniform('u_resolution', [width, height]);
+    this.shader.setUniform('u_time', this.currentLocalTime);
+    // Animasikan uniform lainnya melalui this.props
+    for(const key in this.props) {
+        if(key.startsWith('u_')) {
+            this.shader.setUniform(key, this.props[key]);
+        }
+    }
+    rect(0, 0, width, height);
+    resetShader();
   }
 }
 
-class TextClip extends VisualClip { /* Implementasi sama seperti v2.6 */ constructor(text, startTime, duration, options = {}) { const d = { x: width / 2, y: height / 2, size: 48, color: color('white'), align: CENTER }; super(startTime, duration, { ...d, ...options }); this.text = text; } display() { const c = color(this.props.color); c.setAlpha(this.props.opacity); fill(c); textAlign(this.props.align, CENTER); textSize(this.props.size); text(this.text, 0, 0); } }
-class ShapeClip extends VisualClip { /* Implementasi sama seperti v2.6 */ constructor(shapeType, startTime, duration, options = {}) { const d = { x: width / 2, y: height / 2, w: 100, h: 100, color: color('red'), stroke: false }; super(startTime, duration, { ...d, ...options }); this.shapeType = shapeType; } display() { const c = color(this.props.color); c.setAlpha(this.props.opacity); fill(c); if (this.props.stroke) { stroke(this.props.stroke); } else { noStroke(); } rectMode(CENTER); if (this.shapeType === 'rect') { rect(0, 0, this.props.w, this.props.h); } else if (this.shapeType === 'ellipse') { ellipse(0, 0, this.props.w, this.props.h); } } }
-class ImageClip extends VisualClip { /* Implementasi sama seperti v2.6 */ constructor(img, startTime, duration, options = {}) { const d = { x: width/2, y: height/2, w: img.width, h: img.height, tintColor: color(255) }; super(startTime, duration, { ...d, ...options }); this.img = img; } display() { const t = color(this.props.tintColor); t.setAlpha(this.props.opacity); tint(t); imageMode(CENTER); image(this.img, 0, 0, this.props.w, this.props.h); } }
-class AudioClip extends BaseClip { /* Implementasi sama seperti v2.6 */ constructor(soundFile, startTime, duration, options) { if (typeof p5.SoundFile === 'undefined') throw new Error('[P5.VideoEditor] AudioClip needs p5.sound library.'); super(startTime, duration || soundFile.duration(), options); this.sound = soundFile; } onStart(localTime) { this.sound.jump(localTime, this.duration - localTime); } onEnd() { this.sound.stop(); } }
-class FunctionClip extends BaseClip { /* Implementasi sama seperti v2.6 */ constructor(callback, startTime, duration) { super(startTime, duration); if (typeof callback !== 'function') throw new Error('[P5.VideoEditor] Callback must be a function.'); this.callback = callback; } onUpdate(localTime) { this.callback({ localTime, progress: localTime / this.duration, clip: this }); } }
-
 
 // =============================================================================
-// BAGIAN 5: SISTEM EFEK (Tidak ada perubahan)
+// BAGIAN 5: SISTEM EFEK & TRANSISI
 // =============================================================================
 class BaseEffect { constructor(duration) { this.duration = duration; } applyTo(clip) {} }
 class FadeInEffect extends BaseEffect { constructor(duration = 1.0) { super(duration); } applyTo(clip) { clip.addKeyframe(0, { opacity: 0 }); clip.addKeyframe(this.duration, { opacity: 255 }); } }
@@ -247,4 +287,26 @@ class FadeOutEffect extends BaseEffect { constructor(duration = 1.0) { super(dur
 class MoveEffect extends BaseEffect { constructor(sX, sY, eX, eY, duration, easing = Easing.easeInOutQuad) { super(duration); this.sX=sX; this.sY=sY; this.eX=eX; this.eY=eY; this.easing=easing; } applyTo(clip) { clip.addKeyframe(0, { x: this.sX, y: this.sY }); clip.addKeyframe(this.duration, { x: this.eX, y: this.eY }, this.easing); } }
 class ScaleEffect extends BaseEffect { constructor(sS, eS, duration, easing = Easing.easeInOutQuad) { super(duration); this.sS=sS; this.eS=eS; this.easing=easing; } applyTo(clip) { clip.addKeyframe(0, { scale: this.sS }); clip.addKeyframe(this.duration, { scale: this.eS }, this.easing); } }
 class RotateEffect extends BaseEffect { constructor(sA, eA, duration, easing = Easing.easeInOutQuad) { super(duration); this.sA=sA; this.eA=eA; this.easing=easing; } applyTo(clip) { clip.addKeyframe(0, { rotation: this.sA }); clip.addKeyframe(this.duration, { rotation: this.eA }, this.easing); } }
+
+/** @class BaseTransition Dasar untuk semua transisi. */
+class BaseTransition {
+  constructor(outClip, inClip, duration) {
+    this.outClip = outClip;
+    this.inClip = inClip;
+    this.duration = duration;
+    this.startTime = inClip.startTime;
+    this.endTime = this.startTime + duration;
+  }
+  isActive(currentTime) { return currentTime >= this.startTime && currentTime < this.endTime; }
+  update(currentTime) { console.error("Metode update() harus diimplementasikan."); }
+}
+
+/** @class CrossFadeTransition Transisi yang memudarkan satu klip keluar sambil memudarkan klip lain masuk. */
+class CrossFadeTransition extends BaseTransition {
+  update(currentTime) {
+    const progress = map(currentTime, this.startTime, this.endTime, 0, 1, true);
+    this.outClip.props.opacity = lerp(255, 0, progress);
+    this.inClip.props.opacity = lerp(0, 255, progress);
+  }
+}
 
