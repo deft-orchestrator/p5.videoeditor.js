@@ -1,18 +1,17 @@
 /*
- * P5.VIDEOEDITOR.JS (v3.2) - The Motion Design Framework
+ * P5.VIDEOEDITOR.JS (v3.3) - The Motion Design Framework
  * Sebuah framework canggih untuk membuat video berbasis kode di p5.js.
  *
- * * FITUR BARU (v3.2):
- * 1. TRANSISI: Memperkenalkan `timeline.addTransition()` dengan `CrossFadeTransition`
- * untuk menciptakan efek perpindahan mulus antar klip.
- * 2. MASKING: Klip visual kini dapat memiliki topeng (`clip.setMask(maskClip)`)
- * untuk efek visual dan komposisi yang kompleks.
- * 3. EFEK SHADER (GLSL): Menambahkan `ShaderEffectClip` untuk menerapkan
- * shader GLSL kustom sebagai lapisan penyesuaian (adjustment layer).
+ * * FITUR BARU (v3.3):
+ * 1. PERBAIKAN MASKING: Logika pembaruan (update) pada klip topeng kini
+ * disinkronkan dengan benar dengan klip induknya, memperbaiki bug waktu dan siklus hidup.
+ * 2. BUFFER GRAFIS ROBUST: Buffer untuk masking kini akan dibuat ulang secara
+ * otomatis jika ukuran kanvas berubah, mencegah masalah render.
  *
- * * Arsitektur Diperbarui:
- * - Timeline kini secara eksplisit mengelola transisi dan siklus hidup klip.
- * - `VisualClip.render()` diperbarui untuk menangani logika masking.
+ * * FITUR SEBELUMNYA (v3.2):
+ * - TRANSISI: Memperkenalkan `timeline.addTransition()` dengan `CrossFadeTransition`.
+ * - MASKING: Klip visual dapat memiliki topeng (`clip.setMask(maskClip)`).
+ * - EFEK SHADER (GLSL): Menambahkan `ShaderEffectClip` sebagai lapisan penyesuaian.
  */
 
 // =============================================================================
@@ -186,8 +185,10 @@ class VisualClip extends BaseClip {
   onUpdate(localTime) {
     super.onUpdate(localTime);
     this._updateProperties(localTime);
-    if(this.mask) {
-        this.mask.onUpdate(this.mask.currentLocalTime + (1/this.frameRate)); // Manual update
+    if (this.mask) {
+      // Update mask menggunakan localTime dari klip ini untuk memastikan sinkronisasi yang sempurna.
+      // Ini memperlakukan animasi mask seolah-olah relatif terhadap durasi klip induk.
+      this.mask.onUpdate(localTime);
     }
   }
   
@@ -218,8 +219,11 @@ class VisualClip extends BaseClip {
   }
 
   _renderWithMask() {
-    if (!this._contentGfx) this._contentGfx = createGraphics(width, height);
-    if (!this._maskGfx) this._maskGfx = createGraphics(width, height);
+    // Buat ulang buffer jika tidak ada atau jika ukuran kanvas berubah.
+    if (!this._contentGfx || this._contentGfx.width !== width || this._contentGfx.height !== height) {
+        this._contentGfx = createGraphics(width, height);
+        this._maskGfx = createGraphics(width, height);
+    }
     
     // 1. Gambar konten ke buffer konten
     this._contentGfx.clear();
