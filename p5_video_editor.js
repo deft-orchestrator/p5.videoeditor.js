@@ -1,22 +1,30 @@
 /*
- * P5.VIDEOEDITOR.JS (v2.5)
+ * P5.VIDEOEDITOR.JS (v2.6)
  * Sebuah framework canggih untuk membuat video berbasis kode di p5.js.
  *
- * * FITUR BARU (v2.5):
- * 1. Penambahan Fungsi Easing: Menambahkan fungsi easing Expo, Back, Elastic,
- * dan Bounce untuk animasi yang lebih ekspresif dan dinamis.
- * 2. Konsistensi ImageClip: ImageClip kini mendukung properti `tintColor` yang
- * dapat dianimasikan, membuatnya konsisten dengan klip visual lainnya.
+ * * FITUR BARU (v2.6):
+ * 1. FunctionClip: Klip baru untuk mengeksekusi fungsi callback pada waktu tertentu,
+ * mengubah framework ini menjadi alat otomatisasi yang lebih umum.
+ * 2. Penambahan & Refaktor Easing: Menambahkan variasi In/InOut Bounce dan
+ * merapikan konstanta untuk keterbacaan yang lebih baik.
  *
- * * FITUR SEBELUMNYA (v2.4):
- * - Transform Origin: Dukungan properti `originX` dan `originY`.
- * - Metode seek() yang Ditingkatkan: Pembaruan state visual instan.
- * - Penanganan Warna yang Lebih Baik: Penggunaan `color.setAlpha()`.
+ * * FITUR SEBELUMNYA (v2.5):
+ * - Penambahan Fungsi Easing: Expo, Back, Elastic, dan Bounce.
+ * - Konsistensi ImageClip: Dukungan properti `tintColor` yang dapat dianimasikan.
  */
 
 // =============================================================================
 // BAGIAN 1: EASING FUNCTIONS
 // =============================================================================
+
+/**
+ * Konstanta yang digunakan bersama oleh beberapa fungsi easing.
+ * @private
+ */
+const EasingConstants = {
+  BACK_C1: 1.70158,
+  BACK_C2: 1.70158 * 1.525,
+};
 
 /**
  * Kumpulan fungsi easing untuk membuat animasi terasa lebih natural dan profesional.
@@ -34,13 +42,15 @@ const Easing = {
   easeInExpo: t => t === 0 ? 0 : Math.pow(2, 10 * t - 10),
   easeOutExpo: t => t === 1 ? 1 : 1 - Math.pow(2, -10 * t),
   easeInOutExpo: t => t === 0 ? 0 : t === 1 ? 1 : t < 0.5 ? Math.pow(2, 20 * t - 10) / 2 : (2 - Math.pow(2, -20 * t + 10)) / 2,
-  easeInBack: t => { const c1 = 1.70158; const c3 = c1 + 1; return c3 * t * t * t - c1 * t * t; },
-  easeOutBack: t => { const c1 = 1.70158; const c3 = c1 + 1; return 1 + c3 * Math.pow(t - 1, 3) + c1 * Math.pow(t - 1, 2); },
-  easeInOutBack: t => { const c1 = 1.70158; const c2 = c1 * 1.525; return t < 0.5 ? (Math.pow(2 * t, 2) * ((c2 + 1) * 2 * t - c2)) / 2 : (Math.pow(2 * t - 2, 2) * ((c2 + 1) * (t * 2 - 2) + c2) + 2) / 2; },
+  easeInBack: t => { const c1 = EasingConstants.BACK_C1; const c3 = c1 + 1; return c3 * t * t * t - c1 * t * t; },
+  easeOutBack: t => { const c1 = EasingConstants.BACK_C1; const c3 = c1 + 1; return 1 + c3 * Math.pow(t - 1, 3) + c1 * Math.pow(t - 1, 2); },
+  easeInOutBack: t => { const c1 = EasingConstants.BACK_C1; const c2 = EasingConstants.BACK_C2; return t < 0.5 ? (Math.pow(2 * t, 2) * ((c2 + 1) * 2 * t - c2)) / 2 : (Math.pow(2 * t - 2, 2) * ((c2 + 1) * (t * 2 - 2) + c2) + 2) / 2; },
   easeInElastic: t => { const c4 = (2 * Math.PI) / 3; return t === 0 ? 0 : t === 1 ? 1 : -Math.pow(2, 10 * t - 10) * Math.sin((t * 10 - 10.75) * c4); },
   easeOutElastic: t => { const c4 = (2 * Math.PI) / 3; return t === 0 ? 0 : t === 1 ? 1 : Math.pow(2, -10 * t) * Math.sin((t * 10 - 0.75) * c4) + 1; },
   easeInOutElastic: t => { const c5 = (2 * Math.PI) / 4.5; return t === 0 ? 0 : t === 1 ? 1 : t < 0.5 ? -(Math.pow(2, 20 * t - 10) * Math.sin((20 * t - 11.125) * c5)) / 2 : (Math.pow(2, -20 * t + 10) * Math.sin((20 * t - 11.125) * c5)) / 2 + 1; },
   easeOutBounce: t => { const n1 = 7.5625; const d1 = 2.75; if (t < 1 / d1) { return n1 * t * t; } else if (t < 2 / d1) { return n1 * (t -= 1.5 / d1) * t + 0.75; } else if (t < 2.5 / d1) { return n1 * (t -= 2.25 / d1) * t + 0.9375; } else { return n1 * (t -= 2.625 / d1) * t + 0.984375; } },
+  easeInBounce: t => 1 - Easing.easeOutBounce(1 - t),
+  easeInOutBounce: t => t < 0.5 ? (1 - Easing.easeOutBounce(1 - 2 * t)) / 2 : (1 + Easing.easeOutBounce(2 * t - 1)) / 2,
 };
 
 
@@ -393,6 +403,30 @@ class AudioClip extends BaseClip {
   }
   onStart(localTime) { this.sound.jump(localTime, this.duration - localTime); }
   onEnd() { this.sound.stop(); }
+}
+
+/** @class FunctionClip Klip untuk mengeksekusi fungsi callback pada waktu tertentu. */
+class FunctionClip extends BaseClip {
+    /**
+     * @param {function} callback - Fungsi yang akan dipanggil setiap frame saat klip aktif.
+     * @param {number} startTime - Waktu mulai klip.
+     * @param {number} duration - Durasi klip.
+     */
+    constructor(callback, startTime, duration) {
+        super(startTime, duration);
+        if (typeof callback !== 'function') {
+            throw new Error('[P5.VideoEditor] Callback untuk FunctionClip harus berupa fungsi.');
+        }
+        this.callback = callback;
+    }
+
+    onUpdate(localTime) {
+        this.callback({
+            localTime: localTime,
+            progress: localTime / this.duration,
+            clip: this
+        });
+    }
 }
 
 
