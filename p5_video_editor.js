@@ -1,17 +1,19 @@
 /*
- * P5.VIDEOEDITOR.JS (v2.3)
+ * P5.VIDEOEDITOR.JS (v2.4)
  * Sebuah framework canggih untuk membuat video berbasis kode di p5.js.
  *
- * * FITUR BARU (v2.3):
- * 1. Dukungan p5.Vector: Sistem keyframing kini dapat menginterpolasi objek p5.Vector.
- * 2. Transformasi & Efek Baru: Menambahkan properti `rotation` dan `scale` serta
- * efek `RotateEffect` dan `ScaleEffect`.
- * 3. Reset State: Klip kini memiliki opsi `resetOnEnd` untuk kembali ke state awal
- * setelah selesai diputar.
+ * * FITUR BARU (v2.4):
+ * 1. Transform Origin: Klip visual kini mendukung properti `originX` dan `originY`
+ * untuk mengontrol titik pusat rotasi dan skala.
+ * 2. Metode seek() yang Ditingkatkan: `seek()` kini dapat langsung memperbarui
+ * state visual untuk mencegah 'kedipan' dan menyinkronkan audio dengan benar.
+ * 3. Penanganan Warna yang Lebih Baik: Klip kini menangani warna dan opasitas
+ * dengan lebih efisien dan andal menggunakan `color.setAlpha()`.
  *
- * * FITUR SEBELUMNYA (v2.2):
- * - Refaktor Interpolasi: Logika interpolasi diekstrak ke fungsi helper.
- * - Pengecekan Dependensi: AudioClip akan error jika p5.sound tidak dimuat.
+ * * FITUR SEBELUMNYA (v2.3):
+ * - Dukungan p5.Vector: Sistem keyframing dapat menginterpolasi objek p5.Vector.
+ * - Transformasi & Efek Baru: Properti `rotation` dan `scale`.
+ * - Reset State: Opsi `resetOnEnd` untuk klip.
  */
 
 // =============================================================================
@@ -113,10 +115,31 @@ class Timeline {
   pause() { this.isPlaying = false; }
 
   /**
-   * Melompat ke waktu tertentu di dalam timeline.
+   * Melompat ke waktu tertentu dan secara opsional memperbarui state klip dengan segera.
    * @param {number} timeInSeconds - Waktu tujuan dalam detik.
+   * @param {boolean} [forceUpdate=true] - Jika true, akan segera menghitung ulang dan menerapkan properti klip.
    */
-  seek(timeInSeconds) { this.currentTime = timeInSeconds; }
+  seek(timeInSeconds, forceUpdate = true) {
+    this.currentTime = timeInSeconds;
+    this.lastTime = millis(); // Reset lastTime untuk mencegah lonjakan deltaTime
+
+    if (forceUpdate) {
+        // Hentikan semua audio yang mungkin sedang diputar
+        for (const clip of this.activeClips) {
+            if (clip instanceof AudioClip) {
+                clip.sound.stop();
+            }
+        }
+        this.activeClips.clear(); // Kosongkan klip aktif
+
+        // Panggil update secara manual untuk mengatur ulang state
+        // dengan isPlaying = false agar currentTime tidak bertambah lagi
+        const wasPlaying = this.isPlaying;
+        this.isPlaying = false; 
+        this.update(); // Jalankan satu siklus update untuk menyinkronkan state
+        this.isPlaying = wasPlaying;
+    }
+  }
 }
 
 
@@ -273,15 +296,20 @@ class BaseClip {
 class VisualClip extends BaseClip {
   constructor(startTime, duration, options) {
     super(startTime, duration, options);
-    this.props = { opacity: 255, rotation: 0, scale: 1, ...options };
+    this.props = { opacity: 255, rotation: 0, scale: 1, originX: 0, originY: 0, ...options };
     this.initialProps = { ...this.props }; // Simpan state awal untuk reset
   }
   onUpdate(localTime) {
     this._updateProperties(localTime);
     push();
     translate(this.props.x, this.props.y);
+    
+    // Terapkan transformasi dengan titik pusat (origin)
+    translate(this.props.originX, this.props.originY);
     rotate(this.props.rotation);
     scale(this.props.scale);
+    translate(-this.props.originX, -this.props.originY);
+
     this.display(localTime);
     pop();
   }
@@ -296,8 +324,10 @@ class TextClip extends VisualClip {
     this.text = text;
   }
   display() {
-    const c = this.props.color;
-    fill(red(c), green(c), blue(c), this.props.opacity);
+    const finalColor = color(this.props.color);
+    finalColor.setAlpha(this.props.opacity);
+    
+    fill(finalColor);
     textAlign(this.props.align, CENTER);
     textSize(this.props.size);
     text(this.text, 0, 0); // Gambar di (0,0) karena translasi ditangani oleh VisualClip
@@ -312,8 +342,10 @@ class ShapeClip extends VisualClip {
     this.shapeType = shapeType;
   }
   display() {
-    const c = this.props.color;
-    fill(red(c), green(c), blue(c), this.props.opacity);
+    const finalColor = color(this.props.color);
+    finalColor.setAlpha(this.props.opacity);
+    fill(finalColor);
+
     if (this.props.stroke) { stroke(this.props.stroke); } else { noStroke(); }
     rectMode(CENTER);
     if (this.shapeType === 'rect') {
