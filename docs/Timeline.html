@@ -1,0 +1,1859 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <title>JSDoc: Class: Timeline</title>
+
+    <script src="scripts/prettify/prettify.js"> </script>
+    <script src="scripts/prettify/lang-css.js"> </script>
+    <!--[if lt IE 9]>
+      <script src="//html5shiv.googlecode.com/svn/trunk/html5.js"></script>
+    <![endif]-->
+    <link type="text/css" rel="stylesheet" href="styles/prettify-tomorrow.css">
+    <link type="text/css" rel="stylesheet" href="styles/jsdoc-default.css">
+</head>
+
+<body>
+
+<div id="main">
+
+    <h1 class="page-title">Class: Timeline</h1>
+
+
+
+
+
+
+<section>
+
+<header>
+
+        <h2><span class="attribs"><span class="type-signature"></span></span>Timeline<span class="signature">(frameRate<span class="signature-attributes">opt</span>)</span><span class="type-signature"></span></h2>
+
+            <div class="class-description">Timeline
+Kelas utama yang bertindak sebagai orkestrator untuk seluruh animasi.
+Mengelola semua klip, transisi, waktu, dan proses rendering.</div>
+
+
+</header>
+
+<article>
+    <div class="container-overview">
+
+
+
+
+    <h2>Constructor</h2>
+
+
+
+    <h4 class="name" id="Timeline"><span class="type-signature"></span>new Timeline<span class="signature">(frameRate<span class="signature-attributes">opt</span>)</span><span class="type-signature"></span></h4>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+    <h5>Parameters:</h5>
+
+
+<table class="params">
+    <thead>
+    <tr>
+
+        <th>Name</th>
+
+
+        <th>Type</th>
+
+
+        <th>Attributes</th>
+
+
+
+        <th>Default</th>
+
+
+        <th class="last">Description</th>
+    </tr>
+    </thead>
+
+    <tbody>
+
+
+        <tr>
+
+                <td class="name"><code>frameRate</code></td>
+
+
+            <td class="type">
+
+
+<span class="param-type">number</span>
+
+
+
+            </td>
+
+
+                <td class="attributes">
+
+                    &lt;optional><br>
+
+
+
+
+
+                </td>
+
+
+
+                <td class="default">
+
+                    60
+
+                </td>
+
+
+            <td class="description last">Frame rate target untuk timeline.</td>
+        </tr>
+
+
+    </tbody>
+</table>
+
+
+
+
+
+
+<dl class="details">
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+    <dt class="tag-source">Source:</dt>
+    <dd class="tag-source"><ul class="dummy"><li>
+        <a href="p5.videoeditor.js.html">p5.videoeditor.js</a>, <a href="p5.videoeditor.js.html#line51">line 51</a>
+    </li></ul></dd>
+
+
+
+
+
+
+
+</dl>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+    </div>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+        <h3 class="subsection-title">Methods</h3>
+
+
+
+
+
+
+
+    <h4 class="name" id="add"><span class="type-signature"></span>add<span class="signature">(clip)</span><span class="type-signature"></span></h4>
+
+
+
+
+
+
+<div class="description">
+    Menambahkan sebuah klip ke timeline.
+</div>
+
+
+
+
+
+
+
+
+
+    <h5>Parameters:</h5>
+
+
+<table class="params">
+    <thead>
+    <tr>
+
+        <th>Name</th>
+
+
+        <th>Type</th>
+
+
+
+
+
+        <th class="last">Description</th>
+    </tr>
+    </thead>
+
+    <tbody>
+
+
+        <tr>
+
+                <td class="name"><code>clip</code></td>
+
+
+            <td class="type">
+
+
+<span class="param-type"><a href="BaseClip.html">BaseClip</a></span>
+
+
+
+            </td>
+
+
+
+
+
+            <td class="description last">Instance dari klip yang akan ditambahkan.</td>
+        </tr>
+
+
+    </tbody>
+</table>
+
+
+
+
+
+
+<dl class="details">
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+    <dt class="tag-source">Source:</dt>
+    <dd class="tag-source"><ul class="dummy"><li>
+        <a href="p5.videoeditor.js.html">p5.videoeditor.js</a>, <a href="p5.videoeditor.js.html#line74">line 74</a>
+    </li></ul></dd>
+
+
+
+
+
+
+
+</dl>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+    <h4 class="name" id="addTransition"><span class="type-signature"></span>addTransition<span class="signature">(transition)</span><span class="type-signature"></span></h4>
+
+
+
+
+
+
+<div class="description">
+    Menambahkan sebuah transisi ke timeline.
+</div>
+
+
+
+
+
+
+
+
+
+    <h5>Parameters:</h5>
+
+
+<table class="params">
+    <thead>
+    <tr>
+
+        <th>Name</th>
+
+
+        <th>Type</th>
+
+
+
+
+
+        <th class="last">Description</th>
+    </tr>
+    </thead>
+
+    <tbody>
+
+
+        <tr>
+
+                <td class="name"><code>transition</code></td>
+
+
+            <td class="type">
+
+
+<span class="param-type"><a href="BaseTransition.html">BaseTransition</a></span>
+
+
+
+            </td>
+
+
+
+
+
+            <td class="description last">Instance dari transisi yang akan ditambahkan.</td>
+        </tr>
+
+
+    </tbody>
+</table>
+
+
+
+
+
+
+<dl class="details">
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+    <dt class="tag-source">Source:</dt>
+    <dd class="tag-source"><ul class="dummy"><li>
+        <a href="p5.videoeditor.js.html">p5.videoeditor.js</a>, <a href="p5.videoeditor.js.html#line83">line 83</a>
+    </li></ul></dd>
+
+
+
+
+
+
+
+</dl>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+    <h4 class="name" id="captureFrame"><span class="type-signature"></span>captureFrame<span class="signature">(canvasElement<span class="signature-attributes">opt</span>)</span><span class="type-signature"></span></h4>
+
+
+
+
+
+
+<div class="description">
+    Menangkap frame kanvas saat ini untuk diekspor. Panggil ini di akhir `draw()`.
+</div>
+
+
+
+
+
+
+
+
+
+    <h5>Parameters:</h5>
+
+
+<table class="params">
+    <thead>
+    <tr>
+
+        <th>Name</th>
+
+
+        <th>Type</th>
+
+
+        <th>Attributes</th>
+
+
+
+
+        <th class="last">Description</th>
+    </tr>
+    </thead>
+
+    <tbody>
+
+
+        <tr>
+
+                <td class="name"><code>canvasElement</code></td>
+
+
+            <td class="type">
+
+
+<span class="param-type">HTMLElement</span>
+
+
+
+            </td>
+
+
+                <td class="attributes">
+
+                    &lt;optional><br>
+
+
+
+
+
+                </td>
+
+
+
+
+            <td class="description last">Elemen kanvas p5.js. Otomatis terdeteksi jika tidak disediakan.</td>
+        </tr>
+
+
+    </tbody>
+</table>
+
+
+
+
+
+
+<dl class="details">
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+    <dt class="tag-source">Source:</dt>
+    <dd class="tag-source"><ul class="dummy"><li>
+        <a href="p5.videoeditor.js.html">p5.videoeditor.js</a>, <a href="p5.videoeditor.js.html#line256">line 256</a>
+    </li></ul></dd>
+
+
+
+
+
+
+
+</dl>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+    <h4 class="name" id="pause"><span class="type-signature"></span>pause<span class="signature">()</span><span class="type-signature"></span></h4>
+
+
+
+
+
+
+<div class="description">
+    Menjeda pemutaran timeline.
+</div>
+
+
+
+
+
+
+
+
+
+
+
+
+
+<dl class="details">
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+    <dt class="tag-source">Source:</dt>
+    <dd class="tag-source"><ul class="dummy"><li>
+        <a href="p5.videoeditor.js.html">p5.videoeditor.js</a>, <a href="p5.videoeditor.js.html#line206">line 206</a>
+    </li></ul></dd>
+
+
+
+
+
+
+
+</dl>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+    <h4 class="name" id="play"><span class="type-signature"></span>play<span class="signature">()</span><span class="type-signature"></span></h4>
+
+
+
+
+
+
+<div class="description">
+    Memulai pemutaran timeline.
+</div>
+
+
+
+
+
+
+
+
+
+
+
+
+
+<dl class="details">
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+    <dt class="tag-source">Source:</dt>
+    <dd class="tag-source"><ul class="dummy"><li>
+        <a href="p5.videoeditor.js.html">p5.videoeditor.js</a>, <a href="p5.videoeditor.js.html#line203">line 203</a>
+    </li></ul></dd>
+
+
+
+
+
+
+
+</dl>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+    <h4 class="name" id="seek"><span class="type-signature"></span>seek<span class="signature">(timeInSeconds, forceUpdate<span class="signature-attributes">opt</span>)</span><span class="type-signature"></span></h4>
+
+
+
+
+
+
+<div class="description">
+    Melompat ke waktu tertentu di timeline.
+</div>
+
+
+
+
+
+
+
+
+
+    <h5>Parameters:</h5>
+
+
+<table class="params">
+    <thead>
+    <tr>
+
+        <th>Name</th>
+
+
+        <th>Type</th>
+
+
+        <th>Attributes</th>
+
+
+
+        <th>Default</th>
+
+
+        <th class="last">Description</th>
+    </tr>
+    </thead>
+
+    <tbody>
+
+
+        <tr>
+
+                <td class="name"><code>timeInSeconds</code></td>
+
+
+            <td class="type">
+
+
+<span class="param-type">number</span>
+
+
+
+            </td>
+
+
+                <td class="attributes">
+
+
+
+
+
+                </td>
+
+
+
+                <td class="default">
+
+                </td>
+
+
+            <td class="description last">Waktu tujuan dalam detik.</td>
+        </tr>
+
+
+
+        <tr>
+
+                <td class="name"><code>forceUpdate</code></td>
+
+
+            <td class="type">
+
+
+<span class="param-type">boolean</span>
+
+
+
+            </td>
+
+
+                <td class="attributes">
+
+                    &lt;optional><br>
+
+
+
+
+
+                </td>
+
+
+
+                <td class="default">
+
+                    true
+
+                </td>
+
+
+            <td class="description last">Jika true, akan segera menghitung ulang state semua klip.</td>
+        </tr>
+
+
+    </tbody>
+</table>
+
+
+
+
+
+
+<dl class="details">
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+    <dt class="tag-source">Source:</dt>
+    <dd class="tag-source"><ul class="dummy"><li>
+        <a href="p5.videoeditor.js.html">p5.videoeditor.js</a>, <a href="p5.videoeditor.js.html#line213">line 213</a>
+    </li></ul></dd>
+
+
+
+
+
+
+
+</dl>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+    <h4 class="name" id="setDebug"><span class="type-signature"></span>setDebug<span class="signature">(enabled, options<span class="signature-attributes">opt</span>)</span><span class="type-signature"></span></h4>
+
+
+
+
+
+
+<div class="description">
+    Mengaktifkan atau menonaktifkan mode debug visual.
+</div>
+
+
+
+
+
+
+
+
+
+    <h5>Parameters:</h5>
+
+
+<table class="params">
+    <thead>
+    <tr>
+
+        <th>Name</th>
+
+
+        <th>Type</th>
+
+
+        <th>Attributes</th>
+
+
+
+
+        <th class="last">Description</th>
+    </tr>
+    </thead>
+
+    <tbody>
+
+
+        <tr>
+
+                <td class="name"><code>enabled</code></td>
+
+
+            <td class="type">
+
+
+<span class="param-type">boolean</span>
+
+
+
+            </td>
+
+
+                <td class="attributes">
+
+
+
+
+
+                </td>
+
+
+
+
+            <td class="description last">Set ke true untuk mengaktifkan.</td>
+        </tr>
+
+
+
+        <tr>
+
+                <td class="name"><code>options</code></td>
+
+
+            <td class="type">
+
+
+<span class="param-type">object</span>
+
+
+
+            </td>
+
+
+                <td class="attributes">
+
+                    &lt;optional><br>
+
+
+
+
+
+                </td>
+
+
+
+
+            <td class="description last">Opsi untuk kustomisasi warna debug.
+                <h6>Properties</h6>
+
+
+<table class="params">
+    <thead>
+    <tr>
+
+        <th>Name</th>
+
+
+        <th>Type</th>
+
+
+        <th>Attributes</th>
+
+
+
+        <th>Default</th>
+
+
+        <th class="last">Description</th>
+    </tr>
+    </thead>
+
+    <tbody>
+
+
+        <tr>
+
+                <td class="name"><code>textColor</code></td>
+
+
+            <td class="type">
+
+
+<span class="param-type">string</span>
+
+
+
+            </td>
+
+
+                <td class="attributes">
+
+                    &lt;optional><br>
+
+
+
+
+
+                </td>
+
+
+
+                <td class="default">
+
+                    'white'
+
+                </td>
+
+
+            <td class="description last"></td>
+        </tr>
+
+
+
+        <tr>
+
+                <td class="name"><code>strokeColor</code></td>
+
+
+            <td class="type">
+
+
+<span class="param-type">string</span>
+
+
+
+            </td>
+
+
+                <td class="attributes">
+
+                    &lt;optional><br>
+
+
+
+
+
+                </td>
+
+
+
+                <td class="default">
+
+                    'rgba(255,0,255,0.75)'
+
+                </td>
+
+
+            <td class="description last"></td>
+        </tr>
+
+
+
+        <tr>
+
+                <td class="name"><code>timelineColor</code></td>
+
+
+            <td class="type">
+
+
+<span class="param-type">string</span>
+
+
+
+            </td>
+
+
+                <td class="attributes">
+
+                    &lt;optional><br>
+
+
+
+
+
+                </td>
+
+
+
+                <td class="default">
+
+                    'rgba(255,255,255,0.5)'
+
+                </td>
+
+
+            <td class="description last"></td>
+        </tr>
+
+
+
+        <tr>
+
+                <td class="name"><code>playheadColor</code></td>
+
+
+            <td class="type">
+
+
+<span class="param-type">string</span>
+
+
+
+            </td>
+
+
+                <td class="attributes">
+
+                    &lt;optional><br>
+
+
+
+
+
+                </td>
+
+
+
+                <td class="default">
+
+                    'magenta'
+
+                </td>
+
+
+            <td class="description last"></td>
+        </tr>
+
+
+    </tbody>
+</table>
+
+            </td>
+        </tr>
+
+
+    </tbody>
+</table>
+
+
+
+
+
+
+<dl class="details">
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+    <dt class="tag-source">Source:</dt>
+    <dd class="tag-source"><ul class="dummy"><li>
+        <a href="p5.videoeditor.js.html">p5.videoeditor.js</a>, <a href="p5.videoeditor.js.html#line96">line 96</a>
+    </li></ul></dd>
+
+
+
+
+
+
+
+</dl>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+    <h4 class="name" id="startExport"><span class="type-signature"></span>startExport<span class="signature">(options)</span><span class="type-signature"></span></h4>
+
+
+
+
+
+
+<div class="description">
+    Memulai proses ekspor video. Membutuhkan CCapture.js.
+</div>
+
+
+
+
+
+
+
+
+
+    <h5>Parameters:</h5>
+
+
+<table class="params">
+    <thead>
+    <tr>
+
+        <th>Name</th>
+
+
+        <th>Type</th>
+
+
+
+
+
+        <th class="last">Description</th>
+    </tr>
+    </thead>
+
+    <tbody>
+
+
+        <tr>
+
+                <td class="name"><code>options</code></td>
+
+
+            <td class="type">
+
+
+<span class="param-type">object</span>
+
+
+
+            </td>
+
+
+
+
+
+            <td class="description last">Opsi ekspor.
+                <h6>Properties</h6>
+
+
+<table class="params">
+    <thead>
+    <tr>
+
+        <th>Name</th>
+
+
+        <th>Type</th>
+
+
+        <th>Attributes</th>
+
+
+
+        <th>Default</th>
+
+
+        <th class="last">Description</th>
+    </tr>
+    </thead>
+
+    <tbody>
+
+
+        <tr>
+
+                <td class="name"><code>duration</code></td>
+
+
+            <td class="type">
+
+
+<span class="param-type">number</span>
+
+
+
+            </td>
+
+
+                <td class="attributes">
+
+
+
+
+
+                </td>
+
+
+
+                <td class="default">
+
+                </td>
+
+
+            <td class="description last">Durasi total video yang akan diekspor (dalam detik).</td>
+        </tr>
+
+
+
+        <tr>
+
+                <td class="name"><code>format</code></td>
+
+
+            <td class="type">
+
+
+<span class="param-type">string</span>
+
+
+
+            </td>
+
+
+                <td class="attributes">
+
+                    &lt;optional><br>
+
+
+
+
+
+                </td>
+
+
+
+                <td class="default">
+
+                    'webm'
+
+                </td>
+
+
+            <td class="description last">Format file ('webm', 'gif', 'png').</td>
+        </tr>
+
+
+
+        <tr>
+
+                <td class="name"><code>framerate</code></td>
+
+
+            <td class="type">
+
+
+<span class="param-type">number</span>
+
+
+
+            </td>
+
+
+                <td class="attributes">
+
+                    &lt;optional><br>
+
+
+
+
+
+                </td>
+
+
+
+                <td class="default">
+
+                    timeline.frameRate
+
+                </td>
+
+
+            <td class="description last">Frame rate video.</td>
+        </tr>
+
+
+    </tbody>
+</table>
+
+            </td>
+        </tr>
+
+
+    </tbody>
+</table>
+
+
+
+
+
+
+<dl class="details">
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+    <dt class="tag-source">Source:</dt>
+    <dd class="tag-source"><ul class="dummy"><li>
+        <a href="p5.videoeditor.js.html">p5.videoeditor.js</a>, <a href="p5.videoeditor.js.html#line234">line 234</a>
+    </li></ul></dd>
+
+
+
+
+
+
+
+</dl>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+    <h4 class="name" id="stopExport"><span class="type-signature"></span>stopExport<span class="signature">()</span><span class="type-signature"></span></h4>
+
+
+
+
+
+
+<div class="description">
+    Menghentikan proses ekspor dan menyimpan file.
+</div>
+
+
+
+
+
+
+
+
+
+
+
+
+
+<dl class="details">
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+    <dt class="tag-source">Source:</dt>
+    <dd class="tag-source"><ul class="dummy"><li>
+        <a href="p5.videoeditor.js.html">p5.videoeditor.js</a>, <a href="p5.videoeditor.js.html#line267">line 267</a>
+    </li></ul></dd>
+
+
+
+
+
+
+
+</dl>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+    <h4 class="name" id="update"><span class="type-signature"></span>update<span class="signature">()</span><span class="type-signature"></span></h4>
+
+
+
+
+
+
+<div class="description">
+    Metode utama yang harus dipanggil di dalam loop `draw()` p5.js.
+Metode ini memperbarui state semua klip dan me-render yang aktif.
+</div>
+
+
+
+
+
+
+
+
+
+
+
+
+
+<dl class="details">
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+    <dt class="tag-source">Source:</dt>
+    <dd class="tag-source"><ul class="dummy"><li>
+        <a href="p5.videoeditor.js.html">p5.videoeditor.js</a>, <a href="p5.videoeditor.js.html#line106">line 106</a>
+    </li></ul></dd>
+
+
+
+
+
+
+
+</dl>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+</article>
+
+</section>
+
+
+
+
+</div>
+
+<nav>
+    <h2><a href="index.html">Home</a></h2><h3>Classes</h3><ul><li><a href="AudioClip.html">AudioClip</a></li><li><a href="AudioReactiveEffect.html">AudioReactiveEffect</a></li><li><a href="BaseClip.html">BaseClip</a></li><li><a href="BaseEffect.html">BaseEffect</a></li><li><a href="BaseTransition.html">BaseTransition</a></li><li><a href="ClipGroup.html">ClipGroup</a></li><li><a href="CrossFadeTransition.html">CrossFadeTransition</a></li><li><a href="DynamicEffect.html">DynamicEffect</a></li><li><a href="FadeInEffect.html">FadeInEffect</a></li><li><a href="FadeOutEffect.html">FadeOutEffect</a></li><li><a href="FunctionClip.html">FunctionClip</a></li><li><a href="ImageClip.html">ImageClip</a></li><li><a href="MoveEffect.html">MoveEffect</a></li><li><a href="RotateEffect.html">RotateEffect</a></li><li><a href="ScaleEffect.html">ScaleEffect</a></li><li><a href="ShaderEffectClip.html">ShaderEffectClip</a></li><li><a href="ShapeClip.html">ShapeClip</a></li><li><a href="TextClip.html">TextClip</a></li><li><a href="Timeline.html">Timeline</a></li><li><a href="TypewriterEffect.html">TypewriterEffect</a></li><li><a href="VisualClip.html">VisualClip</a></li><li><a href="WiggleEffect.html">WiggleEffect</a></li></ul><h3>Global</h3><ul><li><a href="global.html#Easing">Easing</a></li></ul>
+</nav>
+
+<br class="clear">
+
+<footer>
+    Documentation generated by <a href="https://github.com/jsdoc/jsdoc">JSDoc 4.0.4</a> on Tue Sep 02 2025 17:40:36 GMT+0000 (Coordinated Universal Time)
+</footer>
+
+<script> prettyPrint(); </script>
+<script src="scripts/linenumber.js"> </script>
+</body>
+</html>
