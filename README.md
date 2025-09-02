@@ -89,7 +89,7 @@ function draw() {
 
 ## Dokumentasi & Contoh Lainnya
 
-*   **Dokumentasi API:** Untuk penjelasan detail tentang setiap kelas dan metode, silakan kunjungi [Dokumentasi API kami](https://github.com/deft-orchestrator/p5.videoeditor.js/) (Tautan ini akan aktif setelah GitHub Pages diatur).
+*   **Dokumentasi API:** Untuk penjelasan detail tentang setiap kelas dan metode, silakan kunjungi [Dokumentasi API kami](https://deft-orchestrator.github.io/p5.videoeditor.js/).
 *   **Folder Contoh:** Jelajahi folder [`/examples`](./examples) untuk melihat berbagai skenario penggunaan, dari animasi teks sederhana hingga efek reaktif audio.
 
 ## Cara Berkontribusi (Contributing)
