@@ -3,6 +3,10 @@
  * Sebuah library sederhana untuk membuat video berbasis kode di p5.js.
  * Konsepnya adalah menggunakan Timeline untuk mengatur berbagai 'Clip'.
  * Setiap 'Clip' tahu kapan harus mulai dan berapa lama durasinya.
+ * * VERSI DIPERBARUI: Menerapkan saran perbaikan dari ulasan kode.
+ * 1. Menggunakan Delta Time untuk perhitungan waktu yang akurat.
+ * 2. Menghapus panggilan background() untuk fleksibilitas pengguna.
+ * 3. Mengoptimalkan perulangan (loop) klip.
  */
 
 // =============================================================================
@@ -14,7 +18,10 @@ class Timeline {
     this.clips = [];
     this.currentTime = 0;
     this.isPlaying = true;
-    this.frameRate = frameRate;
+    this.frameRate = frameRate; // Tetap sebagai target, tapi tidak untuk perhitungan waktu
+    
+    // PERBAIKAN 1: Properti untuk perhitungan delta time
+    this.lastTime = 0; 
   }
 
   /**
@@ -33,13 +40,28 @@ class Timeline {
    */
   update() {
     if (this.isPlaying) {
-      this.currentTime += 1 / this.frameRate;
+      // PERBAIKAN 1: Gunakan delta time untuk perhitungan waktu yang akurat,
+      // tidak terpengaruh oleh fluktuasi frame rate.
+      const now = millis();
+      const deltaTime = (now - this.lastTime) / 1000.0; // Delta time dalam detik
+      this.currentTime += deltaTime;
+      this.lastTime = now;
     }
-
-    background(0); // Membersihkan kanvas di setiap frame
+    
+    // PERBAIKAN 2: Panggilan background() dihapus.
+    // Pengguna harus memanggil background() di dalam sketch utama mereka
+    // untuk memberikan kontrol dan fleksibilitas penuh.
 
     // Menggambar semua klip yang seharusnya aktif pada currentTime
     for (const clip of this.clips) {
+      
+      // PERBAIKAN 3: Optimasi perulangan.
+      // Jika waktu mulai klip sudah melewati waktu saat ini, klip-klip
+      // berikutnya juga pasti belum mulai, jadi kita bisa hentikan loop.
+      if (clip.startTime > this.currentTime) {
+        break;
+      }
+      
       const isClipActive =
         this.currentTime >= clip.startTime &&
         this.currentTime < clip.startTime + clip.duration;
@@ -55,7 +77,14 @@ class Timeline {
   }
 
   // Kontrol pemutaran
-  play() { this.isPlaying = true; }
+  play() { 
+    if (!this.isPlaying) {
+      this.isPlaying = true; 
+      // PERBAIKAN 1: Inisialisasi lastTime saat pemutaran dimulai
+      // untuk memastikan perhitungan delta time pertama akurat.
+      this.lastTime = millis();
+    }
+  }
   pause() { this.isPlaying = false; }
   seek(timeInSeconds) { this.currentTime = timeInSeconds; }
 }
@@ -83,7 +112,7 @@ class BaseClip {
 }
 
 // =============================================================================
-// CONTOH JENIS KLIP
+// CONTOH JENIS KLIP (Tidak ada perubahan di sini)
 // =============================================================================
 
 /**
@@ -195,3 +224,4 @@ class ImageClip extends BaseClip {
         pop();
     }
 }
+
