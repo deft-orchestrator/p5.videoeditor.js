@@ -1,17 +1,15 @@
 /*
- * P5.VIDEOEDITOR.JS (v3.7) - The Motion Design Framework
+ * P5.VIDEOEDITOR.JS (v3.8) - The Motion Design Framework
  * Sebuah framework canggih untuk membuat video berbasis kode di p5.js.
  *
- * * FITUR BARU (v3.7):
- * 1. WAKTU BERBASIS FRAME: Arsitektur waktu inti kini sepenuhnya berbasis frame
- * (`currentTime = currentFrame / frameRate`) untuk output yang 100% deterministik
- * dan bebas dari glitch, standar untuk rendering video profesional.
- * 2. MODUL EKSPOR BAWAAN: Memperkenalkan `timeline.startExport()`, `timeline.captureFrame()`,
- * dan `timeline.stopExport()` yang terintegrasi dengan CCapture.js untuk
- * memudahkan proses rendering video langsung dari kode.
+ * * FITUR BARU (v3.8):
+ * 1. KETERBACAAN KODE: Melakukan refaktor pada semua definisi kelas untuk
+ * meningkatkan keterbacaan dan konsistensi gaya kode.
+ * 2. DOKUMENTASI PERFORMA: Menambahkan catatan pada dokumentasi `setMask()`
+ * mengenai potensi dampak performa saat playback real-time.
  *
  * * FITUR SEBELUMNYA:
- * - Sistem efek dinamis (Wiggle, Typewriter, AudioReactive), mode debug visual,
+ * - Waktu berbasis frame, modul ekspor, efek dinamis, mode debug visual,
  * parenting, easing per-properti, grup klip, transisi, masking, dan efek shader.
  */
 
@@ -45,8 +43,6 @@ class Timeline {
     this.activeClips = new Set();
     this.debug = false;
     this.debugOptions = {};
-
-    // Properti untuk modul ekspor
     this.isExporting = false;
     this.capturer = null;
     this.exportOptions = {};
@@ -68,7 +64,6 @@ class Timeline {
   }
 
   update() {
-    // Perbarui waktu berdasarkan frame, bukan deltaTime, untuk output yang deterministik
     if (this.isPlaying) {
       this.currentFrame++;
     }
@@ -143,7 +138,6 @@ class Timeline {
             pop();
         }
     }
-    
     const timelineY = height - 20;
     const totalDuration = this.clips.reduce((max, c) => Math.max(max, c.startTime + c.duration), 0);
     stroke(this.debugOptions.timelineColor);
@@ -177,7 +171,6 @@ class Timeline {
     }
   }
 
-  // --- MODUL EKSPOR ---
   startExport(options = {}) {
     if (typeof CCapture === 'undefined') {
       throw new Error('[P5.VideoEditor] Exporting requires the CCapture.js library. Please include it in your HTML file.');
@@ -186,24 +179,19 @@ class Timeline {
     if (!duration) {
       throw new Error('[P5.VideoEditor] Export "duration" must be specified in options.');
     }
-
     this.exportOptions = { duration, framerate };
     this.capturer = new CCapture({ format, framerate, verbose });
     this.isExporting = true;
-    
-    this.frameRate = framerate; // Sesuaikan frameRate timeline dengan ekspor
+    this.frameRate = framerate;
     this.seek(0, true);
     this.isPlaying = true;
-
     this.capturer.start();
     console.log(`[P5.VideoEditor] Export started. Capturing ${duration * framerate} frames.`);
   }
 
   captureFrame(canvasElement) {
     if (!this.isExporting || !this.capturer) return;
-
     this.capturer.capture(canvasElement || p5.instance._renderer.elt);
-
     if (this.currentTime >= this.exportOptions.duration) {
       this.stopExport();
     }
@@ -211,19 +199,17 @@ class Timeline {
 
   stopExport() {
     if (!this.isExporting || !this.capturer) return;
-
     console.log('[P5.VideoEditor] Finalizing video... this may take a moment.');
     this.capturer.stop();
     this.capturer.save();
-
     this.capturer = null;
     this.isExporting = false;
-    this.seek(0, true); // Reset timeline
+    this.seek(0, true);
     console.log('[P5.VideoEditor] Export finished.');
   }
 }
 
-// ... Sisa kode (BAGIAN 3, 4, 5) tetap sama seperti v3.6 ...
+
 // =============================================================================
 // BAGIAN 3: CLASS DASAR - BASECLIP & VISUALCLIP
 // =============================================================================
@@ -303,7 +289,18 @@ class VisualClip extends BaseClip {
   setParent(parentClip) { if (this.parent) this.parent._removeChild(this); this.parent = parentClip; if (parentClip) parentClip._addChild(this); }
   _addChild(childClip) { this.children.push(childClip); }
   _removeChild(childClip) { this.children = this.children.filter(c => c !== childClip); }
+  
+  /**
+   * Menetapkan klip visual lain sebagai topeng untuk klip ini.
+   * Hanya area di dalam topeng yang akan terlihat.
+   * @param {VisualClip} maskClip - Klip yang akan digunakan sebagai topeng.
+   * @note Penggunaan masking yang berlebihan, terutama pada klip berukuran besar,
+   * dapat berdampak pada performa playback real-time karena memerlukan
+   * rendering ke buffer grafis tambahan di setiap frame.
+   * Hal ini tidak akan mempengaruhi kualitas atau kecepatan ekspor akhir.
+   */
   setMask(maskClip) { this.mask = maskClip; }
+
   render() { if (this.mask) { this._renderWithMask(); } else { this._renderWithoutMask(); } }
   _renderWithoutMask() { push(); translate(this.props.x, this.props.y); translate(this.props.originX, this.props.originY); rotate(this.props.rotation); scale(this.props.scale); translate(-this.props.originX, -this.props.originY); this.display(); for (const child of this.children) if (child.render) child.render(); pop(); }
   _renderWithMask() { if (!this._contentGfx || this._contentGfx.width !== width || this._contentGfx.height !== height) { this._contentGfx = createGraphics(width, height); this._maskGfx = createGraphics(width, height); } this._contentGfx.clear(); this._contentGfx.push(); this._contentGfx.translate(this.props.x, this.props.y); this.display(); this._contentGfx.pop(); this._maskGfx.clear(); this.mask.render(); let maskedContent = this._contentGfx.get(); maskedContent.mask(this._maskGfx.get()); image(maskedContent, 0, 0); }
@@ -312,13 +309,29 @@ class VisualClip extends BaseClip {
 
 
 // =============================================================================
-// BAGIAN 4: JENIS-JENIS KLIP
+// BAGIAN 4: JENIS-JENIS KLIP (REFAKTOR KETERBACAAN)
 // =============================================================================
-class ClipGroup extends VisualClip { constructor(startTime, duration, options = {}) { super(startTime, duration, options); this.internalTimeline = new Timeline(); this.internalTimeline.isPlaying = false; } add(clip) { this.internalTimeline.add(clip); } onUpdate(localTime) { super.onUpdate(localTime); } display() { this.internalTimeline.seek(this.currentLocalTime, true); } }
+class ClipGroup extends VisualClip {
+  constructor(startTime, duration, options = {}) {
+    super(startTime, duration, options);
+    this.internalTimeline = new Timeline();
+    this.internalTimeline.isPlaying = false;
+  }
+  add(clip) {
+    this.internalTimeline.add(clip);
+  }
+  onUpdate(localTime) {
+    super.onUpdate(localTime);
+  }
+  display() {
+    this.internalTimeline.seek(this.currentLocalTime, true);
+  }
+}
+
 class TextClip extends VisualClip {
   constructor(text, startTime, duration, options = {}) {
-    const d = { x: width / 2, y: height / 2, size: 48, color: color('white'), align: CENTER };
-    super(startTime, duration, { ...d, ...options });
+    const defaultOptions = { x: width / 2, y: height / 2, size: 48, color: color('white'), align: CENTER };
+    super(startTime, duration, { ...defaultOptions, ...options });
     this.text = text;
   }
   display() {
@@ -331,8 +344,46 @@ class TextClip extends VisualClip {
     text(textToShow, 0, 0);
   }
 }
-class ShapeClip extends VisualClip { constructor(shapeType, startTime, duration, options = {}) { const d = { x: width / 2, y: height / 2, w: 100, h: 100, color: color('red'), stroke: false }; super(startTime, duration, { ...d, ...options }); this.shapeType = shapeType; } display() { const c = color(this.props.color); c.setAlpha(this.props.opacity); fill(c); if (this.props.stroke) { stroke(this.props.stroke); } else { noStroke(); } rectMode(CENTER); if (this.shapeType === 'rect') { rect(0, 0, this.props.w, this.props.h); } else if (this.shapeType === 'ellipse') { ellipse(0, 0, this.props.w, this.props.h); } } }
-class ImageClip extends VisualClip { constructor(img, startTime, duration, options = {}) { const d = { x: width/2, y: height/2, w: img.width, h: img.height, tintColor: color(255) }; super(startTime, duration, { ...d, ...options }); this.img = img; } display() { const t = color(this.props.tintColor); t.setAlpha(this.props.opacity); tint(t); imageMode(CENTER); image(this.img, 0, 0, this.props.w, this.props.h); } }
+
+class ShapeClip extends VisualClip {
+  constructor(shapeType, startTime, duration, options = {}) {
+    const defaultOptions = { x: width / 2, y: height / 2, w: 100, h: 100, color: color('red'), stroke: false };
+    super(startTime, duration, { ...defaultOptions, ...options });
+    this.shapeType = shapeType;
+  }
+  display() {
+    const c = color(this.props.color);
+    c.setAlpha(this.props.opacity);
+    fill(c);
+    if (this.props.stroke) {
+      stroke(this.props.stroke);
+    } else {
+      noStroke();
+    }
+    rectMode(CENTER);
+    if (this.shapeType === 'rect') {
+      rect(0, 0, this.props.w, this.props.h);
+    } else if (this.shapeType === 'ellipse') {
+      ellipse(0, 0, this.props.w, this.props.h);
+    }
+  }
+}
+
+class ImageClip extends VisualClip {
+  constructor(img, startTime, duration, options = {}) {
+    const defaultOptions = { x: width / 2, y: height / 2, w: img.width, h: img.height, tintColor: color(255) };
+    super(startTime, duration, { ...defaultOptions, ...options });
+    this.img = img;
+  }
+  display() {
+    const t = color(this.props.tintColor);
+    t.setAlpha(this.props.opacity);
+    tint(t);
+    imageMode(CENTER);
+    image(this.img, 0, 0, this.props.w, this.props.h);
+  }
+}
+
 class AudioClip extends BaseClip {
   constructor(soundFile, startTime, duration, options) {
     if (typeof p5.SoundFile === 'undefined' || typeof p5.Amplitude === 'undefined') {
@@ -343,32 +394,87 @@ class AudioClip extends BaseClip {
     this.analyzer = new p5.Amplitude();
     this.analyzer.setInput(this.sound);
   }
-  onStart(localTime) { this.sound.jump(localTime, this.duration - localTime); }
-  onEnd() { this.sound.stop(); }
-  getLevel() { return this.analyzer.getLevel(); }
+  onStart(localTime) {
+    this.sound.jump(localTime, this.duration - localTime);
+  }
+  onEnd() {
+    this.sound.stop();
+  }
+  getLevel() {
+    return this.analyzer.getLevel();
+  }
 }
-class FunctionClip extends BaseClip { constructor(callback, startTime, duration) { super(startTime, duration); if (typeof callback !== 'function') throw new Error('[P5.VideoEditor] Callback must be a function.'); this.callback = callback; } onUpdate(localTime) { this.callback({ localTime, progress: localTime / this.duration, clip: this }); } }
-class ShaderEffectClip extends VisualClip { constructor(shader, startTime, duration) { super(startTime, duration, { x: width / 2, y: height / 2 }); this.shader = shader; } display() { shader(this.shader); this.shader.setUniform('u_resolution', [width, height]); this.shader.setUniform('u_time', this.currentLocalTime); for(const key in this.props) { if(key.startsWith('u_')) { this.shader.setUniform(key, this.props[key]); } } rect(0, 0, width, height); resetShader(); } }
+
+class FunctionClip extends BaseClip {
+  constructor(callback, startTime, duration) {
+    super(startTime, duration);
+    if (typeof callback !== 'function') {
+      throw new Error('[P5.VideoEditor] Callback must be a function.');
+    }
+    this.callback = callback;
+  }
+  onUpdate(localTime) {
+    this.callback({
+      localTime,
+      progress: localTime / this.duration,
+      clip: this
+    });
+  }
+}
+
+class ShaderEffectClip extends VisualClip {
+  constructor(shader, startTime, duration) {
+    super(startTime, duration, { x: width / 2, y: height / 2 });
+    this.shader = shader;
+  }
+  display() {
+    shader(this.shader);
+    this.shader.setUniform('u_resolution', [width, height]);
+    this.shader.setUniform('u_time', this.currentLocalTime);
+    for (const key in this.props) {
+      if (key.startsWith('u_')) {
+        this.shader.setUniform(key, this.props[key]);
+      }
+    }
+    rect(0, 0, width, height);
+    resetShader();
+  }
+}
 
 
 // =============================================================================
-// BAGIAN 5: SISTEM EFEK & TRANSISI
+// BAGIAN 5: SISTEM EFEK & TRANSISI (REFAKTOR KETERBACAAN)
 // =============================================================================
-/** @class BaseEffect Efek statis yang menerapkan keyframe saat ditambahkan. */
-class BaseEffect { constructor(duration) { this.duration = duration; } applyTo(clip) {} }
-class FadeInEffect extends BaseEffect { constructor(duration = 1.0) { super(duration); } applyTo(clip) { clip.addKeyframe(0, { opacity: 0 }); clip.addKeyframe(this.duration, { opacity: 255 }); } }
-class FadeOutEffect extends BaseEffect { constructor(duration = 1.0) { super(duration); } applyTo(clip) { const s = clip.duration - this.duration; clip.addKeyframe(s, { opacity: 255 }); clip.addKeyframe(clip.duration, { opacity: 0 }); } }
-class MoveEffect extends BaseEffect { constructor(sX, sY, eX, eY, duration, easing = Easing.easeInOutQuad) { super(duration); this.sX=sX; this.sY=sY; this.eX=eX; this.eY=eY; this.easing=easing; } applyTo(clip) { clip.addKeyframe(0, { x: this.sX, y: this.sY }); clip.addKeyframe(this.duration, { x: this.eX, y: this.eY }, this.easing); } }
-class ScaleEffect extends BaseEffect { constructor(sS, eS, duration, easing = Easing.easeInOutQuad) { super(duration); this.sS=sS; this.eS=eS; this.easing=easing; } applyTo(clip) { clip.addKeyframe(0, { scale: this.sS }); clip.addKeyframe(this.duration, { scale: this.eS }, this.easing); } }
-class RotateEffect extends BaseEffect { constructor(sA, eA, duration, easing = Easing.easeInOutQuad) { super(duration); this.sA=sA; this.eA=eA; this.easing=easing; } applyTo(clip) { clip.addKeyframe(0, { rotation: this.sA }); clip.addKeyframe(this.duration, { rotation: this.eA }, this.easing); } }
+class BaseEffect {
+  constructor(duration) { this.duration = duration; }
+  applyTo(clip) {}
+}
+class FadeInEffect extends BaseEffect {
+  constructor(duration = 1.0) { super(duration); }
+  applyTo(clip) { clip.addKeyframe(0, { opacity: 0 }); clip.addKeyframe(this.duration, { opacity: 255 }); }
+}
+class FadeOutEffect extends BaseEffect {
+  constructor(duration = 1.0) { super(duration); }
+  applyTo(clip) { const s = clip.duration - this.duration; clip.addKeyframe(s, { opacity: 255 }); clip.addKeyframe(clip.duration, { opacity: 0 }); }
+}
+class MoveEffect extends BaseEffect {
+  constructor(sX, sY, eX, eY, duration, easing = Easing.easeInOutQuad) { super(duration); this.sX=sX; this.sY=sY; this.eX=eX; this.eY=eY; this.easing=easing; }
+  applyTo(clip) { clip.addKeyframe(0, { x: this.sX, y: this.sY }); clip.addKeyframe(this.duration, { x: this.eX, y: this.eY }, this.easing); }
+}
+class ScaleEffect extends BaseEffect {
+  constructor(sS, eS, duration, easing = Easing.easeInOutQuad) { super(duration); this.sS=sS; this.eS=eS; this.easing=easing; }
+  applyTo(clip) { clip.addKeyframe(0, { scale: this.sS }); clip.addKeyframe(this.duration, { scale: this.eS }, this.easing); }
+}
+class RotateEffect extends BaseEffect {
+  constructor(sA, eA, duration, easing = Easing.easeInOutQuad) { super(duration); this.sA=sA; this.eA=eA; this.easing=easing; }
+  applyTo(clip) { clip.addKeyframe(0, { rotation: this.sA }); clip.addKeyframe(this.duration, { rotation: this.eA }, this.easing); }
+}
 
-/** @class DynamicEffect Dasar untuk efek yang berjalan setiap frame. */
 class DynamicEffect extends BaseEffect {
   constructor() { super(0); }
   update(clip, localTime) {}
 }
 
-/** @class WiggleEffect Menggoyangkan sebuah properti secara acak (aditif). */
 class WiggleEffect extends DynamicEffect {
   constructor(property, magnitude = 10, speed = 5) {
     super();
@@ -389,7 +495,6 @@ class WiggleEffect extends DynamicEffect {
   }
 }
 
-/** @class TypewriterEffect Menampilkan teks huruf per huruf. */
 class TypewriterEffect extends DynamicEffect {
   constructor(charsPerSecond = 15) {
     super();
@@ -401,7 +506,6 @@ class TypewriterEffect extends DynamicEffect {
   }
 }
 
-/** @class AudioReactiveEffect Mengubah properti berdasarkan level audio (aditif). */
 class AudioReactiveEffect extends DynamicEffect {
   constructor(audioClip, property, magnitude = 100) {
     super();
@@ -423,8 +527,6 @@ class AudioReactiveEffect extends DynamicEffect {
   }
 }
 
-
-/** @class BaseTransition Dasar untuk semua transisi. */
 class BaseTransition {
   constructor(outClip, inClip, duration) {
     this.outClip = outClip;
@@ -437,7 +539,6 @@ class BaseTransition {
   update(currentTime) { console.error("Metode update() harus diimplementasikan."); }
 }
 
-/** @class CrossFadeTransition Transisi yang memudarkan satu klip keluar sambil memudarkan klip lain masuk. */
 class CrossFadeTransition extends BaseTransition {
   update(currentTime) {
     const progress = map(currentTime, this.startTime, this.endTime, 0, 1, true);
