@@ -1,19 +1,17 @@
 /*
- * P5.VIDEOEDITOR.JS (v2.4)
+ * P5.VIDEOEDITOR.JS (v2.5)
  * Sebuah framework canggih untuk membuat video berbasis kode di p5.js.
  *
- * * FITUR BARU (v2.4):
- * 1. Transform Origin: Klip visual kini mendukung properti `originX` dan `originY`
- * untuk mengontrol titik pusat rotasi dan skala.
- * 2. Metode seek() yang Ditingkatkan: `seek()` kini dapat langsung memperbarui
- * state visual untuk mencegah 'kedipan' dan menyinkronkan audio dengan benar.
- * 3. Penanganan Warna yang Lebih Baik: Klip kini menangani warna dan opasitas
- * dengan lebih efisien dan andal menggunakan `color.setAlpha()`.
+ * * FITUR BARU (v2.5):
+ * 1. Penambahan Fungsi Easing: Menambahkan fungsi easing Expo, Back, Elastic,
+ * dan Bounce untuk animasi yang lebih ekspresif dan dinamis.
+ * 2. Konsistensi ImageClip: ImageClip kini mendukung properti `tintColor` yang
+ * dapat dianimasikan, membuatnya konsisten dengan klip visual lainnya.
  *
- * * FITUR SEBELUMNYA (v2.3):
- * - Dukungan p5.Vector: Sistem keyframing dapat menginterpolasi objek p5.Vector.
- * - Transformasi & Efek Baru: Properti `rotation` dan `scale`.
- * - Reset State: Opsi `resetOnEnd` untuk klip.
+ * * FITUR SEBELUMNYA (v2.4):
+ * - Transform Origin: Dukungan properti `originX` dan `originY`.
+ * - Metode seek() yang Ditingkatkan: Pembaruan state visual instan.
+ * - Penanganan Warna yang Lebih Baik: Penggunaan `color.setAlpha()`.
  */
 
 // =============================================================================
@@ -22,6 +20,7 @@
 
 /**
  * Kumpulan fungsi easing untuk membuat animasi terasa lebih natural dan profesional.
+ * Berdasarkan formula dari easings.net
  * @namespace Easing
  */
 const Easing = {
@@ -32,6 +31,16 @@ const Easing = {
   easeInCubic: t => t * t * t,
   easeOutCubic: t => (--t) * t * t + 1,
   easeInOutCubic: t => t < 0.5 ? 4 * t * t * t : (t - 1) * (2 * t - 2) * (2 * t - 2) + 1,
+  easeInExpo: t => t === 0 ? 0 : Math.pow(2, 10 * t - 10),
+  easeOutExpo: t => t === 1 ? 1 : 1 - Math.pow(2, -10 * t),
+  easeInOutExpo: t => t === 0 ? 0 : t === 1 ? 1 : t < 0.5 ? Math.pow(2, 20 * t - 10) / 2 : (2 - Math.pow(2, -20 * t + 10)) / 2,
+  easeInBack: t => { const c1 = 1.70158; const c3 = c1 + 1; return c3 * t * t * t - c1 * t * t; },
+  easeOutBack: t => { const c1 = 1.70158; const c3 = c1 + 1; return 1 + c3 * Math.pow(t - 1, 3) + c1 * Math.pow(t - 1, 2); },
+  easeInOutBack: t => { const c1 = 1.70158; const c2 = c1 * 1.525; return t < 0.5 ? (Math.pow(2 * t, 2) * ((c2 + 1) * 2 * t - c2)) / 2 : (Math.pow(2 * t - 2, 2) * ((c2 + 1) * (t * 2 - 2) + c2) + 2) / 2; },
+  easeInElastic: t => { const c4 = (2 * Math.PI) / 3; return t === 0 ? 0 : t === 1 ? 1 : -Math.pow(2, 10 * t - 10) * Math.sin((t * 10 - 10.75) * c4); },
+  easeOutElastic: t => { const c4 = (2 * Math.PI) / 3; return t === 0 ? 0 : t === 1 ? 1 : Math.pow(2, -10 * t) * Math.sin((t * 10 - 0.75) * c4) + 1; },
+  easeInOutElastic: t => { const c5 = (2 * Math.PI) / 4.5; return t === 0 ? 0 : t === 1 ? 1 : t < 0.5 ? -(Math.pow(2, 20 * t - 10) * Math.sin((20 * t - 11.125) * c5)) / 2 : (Math.pow(2, -20 * t + 10) * Math.sin((20 * t - 11.125) * c5)) / 2 + 1; },
+  easeOutBounce: t => { const n1 = 7.5625; const d1 = 2.75; if (t < 1 / d1) { return n1 * t * t; } else if (t < 2 / d1) { return n1 * (t -= 1.5 / d1) * t + 0.75; } else if (t < 2.5 / d1) { return n1 * (t -= 2.25 / d1) * t + 0.9375; } else { return n1 * (t -= 2.625 / d1) * t + 0.984375; } },
 };
 
 
@@ -359,16 +368,17 @@ class ShapeClip extends VisualClip {
 /** @class ImageClip Klip untuk menampilkan gambar. */
 class ImageClip extends VisualClip {
     constructor(img, startTime, duration, options = {}) {
-        const defaultOptions = { x: width / 2, y: height / 2, w: img.width, h: img.height };
+        const defaultOptions = { x: width / 2, y: height / 2, w: img.width, h: img.height, tintColor: color(255) };
         super(startTime, duration, { ...defaultOptions, ...options });
         this.img = img;
     }
     display() {
-        push();
-        tint(255, this.props.opacity);
+        const finalTint = color(this.props.tintColor);
+        finalTint.setAlpha(this.props.opacity);
+        
+        tint(finalTint);
         imageMode(CENTER);
         image(this.img, 0, 0, this.props.w, this.props.h);
-        pop();
     }
 }
 
