@@ -1,87 +1,89 @@
 /*
- * P5.VIDEOEDITOR.JS
- * Sebuah library sederhana untuk membuat video berbasis kode di p5.js.
- * Konsepnya adalah menggunakan Timeline untuk mengatur berbagai 'Clip'.
- * Setiap 'Clip' tahu kapan harus mulai dan berapa lama durasinya.
- * * VERSI DIPERBARUI: Menerapkan saran perbaikan dari ulasan kode.
- * 1. Menggunakan Delta Time untuk perhitungan waktu yang akurat.
- * 2. Menghapus panggilan background() untuk fleksibilitas pengguna.
- * 3. Mengoptimalkan perulangan (loop) klip.
+ * P5.VIDEOEDITOR.JS (v2.0)
+ * Library canggih untuk membuat video berbasis kode di p5.js.
+ * * FITUR BARU (v2.0):
+ * 1. Keyframing: Animasikan properti apa pun di dalam klip.
+ * 2. Easing Functions: Kumpulan fungsi untuk animasi yang lebih halus.
+ * 3. AudioClip: Tambahkan dan sinkronkan audio dengan mudah (membutuhkan p5.sound).
+ * 4. Effect System: Cara sederhana untuk menambahkan animasi umum.
+ * 5. Event-Driven Core: Timeline kini menggunakan onStart, onUpdate, onEnd untuk
+ * kontrol klip yang lebih tangguh.
  */
 
 // =============================================================================
-// CLASS UTAMA: Timeline
-// Bertugas sebagai pengatur waktu dan perender semua klip.
+// BAGIAN 1: EASING FUNCTIONS
+// Kumpulan fungsi untuk membuat animasi terasa lebih natural.
+// Sumber: https://easings.net/
+// =============================================================================
+const Easing = {
+  linear: t => t,
+  easeInQuad: t => t * t,
+  easeOutQuad: t => t * (2 - t),
+  easeInOutQuad: t => t < 0.5 ? 2 * t * t : -1 + (4 - 2 * t) * t,
+  easeInCubic: t => t * t * t,
+  easeOutCubic: t => (--t) * t * t + 1,
+  easeInOutCubic: t => t < 0.5 ? 4 * t * t * t : (t - 1) * (2 * t - 2) * (2 * t - 2) + 1,
+};
+
+
+// =============================================================================
+// BAGIAN 2: CLASS UTAMA - TIMELINE
+// Menggunakan sistem event (onStart, onUpdate, onEnd) untuk kontrol yang lebih baik.
 // =============================================================================
 class Timeline {
   constructor(frameRate = 60) {
     this.clips = [];
     this.currentTime = 0;
     this.isPlaying = true;
-    this.frameRate = frameRate; // Tetap sebagai target, tapi tidak untuk perhitungan waktu
-    
-    // PERBAIKAN 1: Properti untuk perhitungan delta time
-    this.lastTime = 0; 
+    this.frameRate = frameRate;
+    this.lastTime = 0;
+    this.activeClips = new Set(); // Melacak klip yang aktif di frame sebelumnya
   }
 
-  /**
-   * Menambahkan sebuah klip ke dalam timeline.
-   * @param {BaseClip} clip - Objek klip yang akan ditambahkan.
-   */
   add(clip) {
     this.clips.push(clip);
-    // Urutkan klip berdasarkan waktu mulainya untuk optimasi
     this.clips.sort((a, b) => a.startTime - b.startTime);
   }
 
-  /**
-   * Fungsi utama yang harus dipanggil di dalam draw() p5.js.
-   * Fungsi ini memperbarui waktu dan menggambar klip yang aktif.
-   */
   update() {
     if (this.isPlaying) {
-      // PERBAIKAN 1: Gunakan delta time untuk perhitungan waktu yang akurat,
-      // tidak terpengaruh oleh fluktuasi frame rate.
       const now = millis();
-      const deltaTime = (now - this.lastTime) / 1000.0; // Delta time dalam detik
+      const deltaTime = (now - this.lastTime) / 1000.0;
       this.currentTime += deltaTime;
       this.lastTime = now;
     }
-    
-    // PERBAIKAN 2: Panggilan background() dihapus.
-    // Pengguna harus memanggil background() di dalam sketch utama mereka
-    // untuk memberikan kontrol dan fleksibilitas penuh.
 
-    // Menggambar semua klip yang seharusnya aktif pada currentTime
+    const currentActiveClips = new Set();
+
     for (const clip of this.clips) {
-      
-      // PERBAIKAN 3: Optimasi perulangan.
-      // Jika waktu mulai klip sudah melewati waktu saat ini, klip-klip
-      // berikutnya juga pasti belum mulai, jadi kita bisa hentikan loop.
-      if (clip.startTime > this.currentTime) {
-        break;
-      }
-      
-      const isClipActive =
-        this.currentTime >= clip.startTime &&
-        this.currentTime < clip.startTime + clip.duration;
+      if (clip.startTime > this.currentTime) break;
+
+      const isClipActive = this.currentTime >= clip.startTime && this.currentTime < clip.startTime + clip.duration;
 
       if (isClipActive) {
-        // Menghitung waktu lokal klip (dari 0 hingga durasinya)
+        currentActiveClips.add(clip);
         const localTime = this.currentTime - clip.startTime;
-        
-        // Memanggil fungsi gambar dari klip tersebut
-        clip.display(localTime);
+
+        if (!this.activeClips.has(clip)) {
+          clip.onStart(localTime); // Panggil onStart saat klip pertama kali aktif
+        }
+        clip.onUpdate(localTime); // Panggil onUpdate setiap frame
       }
     }
+
+    // Periksa klip mana yang sudah tidak aktif lagi
+    for (const clip of this.activeClips) {
+      if (!currentActiveClips.has(clip)) {
+        clip.onEnd(); // Panggil onEnd saat klip berhenti
+      }
+    }
+
+    this.activeClips = currentActiveClips;
   }
 
-  // Kontrol pemutaran
-  play() { 
+  play() {
     if (!this.isPlaying) {
-      this.isPlaying = true; 
-      // PERBAIKAN 1: Inisialisasi lastTime saat pemutaran dimulai
-      // untuk memastikan perhitungan delta time pertama akurat.
+      this.isPlaying = true;
       this.lastTime = millis();
     }
   }
@@ -89,139 +91,214 @@ class Timeline {
   seek(timeInSeconds) { this.currentTime = timeInSeconds; }
 }
 
+
 // =============================================================================
-// CLASS DASAR: BaseClip
-// Template untuk semua jenis klip. Semua klip lain akan mewarisi dari sini.
+// BAGIAN 3: CLASS DASAR - BASECLIP DENGAN KEMAMPUAN KEYFRAMING
 // =============================================================================
 class BaseClip {
   constructor(startTime, duration) {
-    if (new.target === BaseClip) {
-      throw new TypeError("Tidak bisa membuat instance dari BaseClip secara langsung.");
-    }
-    this.startTime = startTime; // Dalam detik
-    this.duration = duration;   // Dalam detik
+    this.startTime = startTime;
+    this.duration = duration;
+    
+    // Sistem Keyframing
+    this.keyframes = [];
+    this.props = {}; // Properti yang dianimasikan
+    this.effects = [];
+  }
+  
+  // Metode event, di-override oleh subclass
+  onStart(localTime) {}
+  onUpdate(localTime) {}
+  onEnd() {}
+
+  // --- Sistem Keyframing & Efek ---
+  addKeyframe(time, properties, easing = Easing.linear) {
+    this.keyframes.push({ time, properties, easing });
+    this.keyframes.sort((a, b) => a.time - b.time);
+  }
+  
+  addEffect(effect) {
+    this.effects.push(effect);
+    effect.applyTo(this);
   }
 
-  /**
-   * Fungsi ini akan di-override oleh setiap jenis klip.
-   * @param {number} localTime - Waktu saat ini di dalam klip (0 s.d. durasi).
-   */
-  display(localTime) {
-    console.error("Fungsi display() harus diimplementasikan oleh subclass.");
+  _updateProperties(localTime) {
+    if (this.keyframes.length === 0) return;
+
+    // Temukan keyframe awal dan akhir
+    let startFrame = this.keyframes.findLast(kf => kf.time <= localTime);
+    let endFrame = this.keyframes.find(kf => kf.time > localTime);
+
+    if (!startFrame && !endFrame) return;
+    if (!startFrame) startFrame = endFrame;
+    if (!endFrame) endFrame = startFrame;
+    
+    // Interpolasi properti
+    for (const key in startFrame.properties) {
+      if (key in endFrame.properties) {
+        const startTime = startFrame.time;
+        const endTime = endFrame.time;
+        const startValue = startFrame.properties[key];
+        const endValue = endFrame.properties[key];
+        
+        let progress = map(localTime, startTime, endTime, 0, 1, true);
+        progress = startFrame.easing(progress);
+
+        if (typeof startValue === 'number') {
+          this.props[key] = lerp(startValue, endValue, progress);
+        } else if (startValue instanceof p5.Color) {
+           this.props[key] = lerpColor(startValue, endValue, progress);
+        }
+      }
+    }
   }
 }
 
+
 // =============================================================================
-// CONTOH JENIS KLIP (Tidak ada perubahan di sini)
+// BAGIAN 4: JENIS-JENIS KLIP
 // =============================================================================
 
-/**
- * Klip untuk menampilkan teks dengan animasi sederhana.
- */
-class TextClip extends BaseClip {
-  constructor(text, startTime, duration, options = {}) {
+class VisualClip extends BaseClip {
+  constructor(startTime, duration, options) {
     super(startTime, duration);
-    this.text = text;
-    // Opsi default
-    this.options = {
-      x: width / 2,
-      y: height / 2,
-      size: 48,
-      color: 'white',
-      align: CENTER,
-      ...options,
-    };
+    // Inisialisasi properti dari options
+    this.props = { opacity: 255, ...options };
   }
 
-  display(localTime) {
-    // Contoh animasi: Fade in di awal dan fade out di akhir
-    let opacity = 255;
-    if (localTime < 1.0) { // Fade in selama 1 detik
-      opacity = map(localTime, 0, 1, 0, 255);
-    } else if (localTime > this.duration - 1.0) { // Fade out selama 1 detik
-      opacity = map(localTime, this.duration - 1, this.duration, 255, 0);
-    }
-
-    push(); // Menyimpan pengaturan gambar saat ini
-    fill(this.options.color, opacity);
-    textAlign(this.options.align, CENTER);
-    textSize(this.options.size);
-    text(this.text, this.options.x, this.options.y);
-    pop(); // Mengembalikan pengaturan gambar
-  }
-}
-
-/**
- * Klip untuk menampilkan bentuk dasar p5.js (rect, ellipse).
- */
-class ShapeClip extends BaseClip {
-  constructor(shapeType, startTime, duration, options = {}) {
-    super(startTime, duration);
-    this.shapeType = shapeType; // 'rect' atau 'ellipse'
-    this.options = {
-      x: width / 2,
-      y: height / 2,
-      w: 100,
-      h: 100,
-      color: 'red',
-      stroke: false,
-      ...options,
-    };
-  }
-
-  display(localTime) {
-    // Contoh animasi: Bergerak dari kiri ke kanan
-    const startX = -this.options.w;
-    const endX = width + this.options.w;
-    const currentX = map(localTime, 0, this.duration, startX, endX);
-
+  onUpdate(localTime) {
+    this._updateProperties(localTime);
     push();
-    if (this.options.stroke) {
-      stroke(this.options.stroke);
+    this.display(localTime);
+    pop();
+  }
+  
+  // Akan di-override
+  display(localTime) {}
+}
+
+class TextClip extends VisualClip {
+  constructor(text, startTime, duration, options = {}) {
+    const defaultOptions = { x: width / 2, y: height / 2, size: 48, color: color('white'), align: CENTER };
+    super(startTime, duration, { ...defaultOptions, ...options });
+    this.text = text;
+  }
+
+  display() {
+    const c = this.props.color;
+    fill(red(c), green(c), blue(c), this.props.opacity);
+    textAlign(this.props.align, CENTER);
+    textSize(this.props.size);
+    text(this.text, this.props.x, this.props.y);
+  }
+}
+
+class ShapeClip extends VisualClip {
+  constructor(shapeType, startTime, duration, options = {}) {
+    const defaultOptions = { x: width / 2, y: height / 2, w: 100, h: 100, color: color('red'), stroke: false };
+    super(startTime, duration, { ...defaultOptions, ...options });
+    this.shapeType = shapeType;
+  }
+
+  display() {
+    const c = this.props.color;
+    fill(red(c), green(c), blue(c), this.props.opacity);
+    if (this.props.stroke) {
+      stroke(this.props.stroke);
     } else {
       noStroke();
     }
-    fill(this.options.color);
     rectMode(CENTER);
-
     if (this.shapeType === 'rect') {
-      rect(currentX, this.options.y, this.options.w, this.options.h);
+      rect(this.props.x, this.props.y, this.props.w, this.props.h);
     } else if (this.shapeType === 'ellipse') {
-      ellipse(currentX, this.options.y, this.options.w, this.options.h);
+      ellipse(this.props.x, this.props.y, this.props.w, this.props.h);
     }
-    pop();
+  }
+}
+
+class ImageClip extends VisualClip {
+    constructor(img, startTime, duration, options = {}) {
+        const defaultOptions = { x: 0, y: 0, w: width, h: height };
+        super(startTime, duration, { ...defaultOptions, ...options });
+        this.img = img;
+    }
+
+    display() {
+        push();
+        tint(255, this.props.opacity);
+        imageMode(CORNER);
+        image(this.img, this.props.x, this.props.y, this.props.w, this.props.h);
+        pop();
+    }
+}
+
+/**
+ * PENTING: Untuk menggunakan AudioClip, tambahkan library p5.sound.js ke file index.html Anda!
+ * <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.9.0/addons/p5.sound.min.js"></script>
+ */
+class AudioClip extends BaseClip {
+  constructor(soundFile, startTime, duration) {
+    super(startTime, duration || soundFile.duration());
+    this.sound = soundFile;
+  }
+
+  onStart(localTime) {
+    this.sound.jump(localTime, this.duration - localTime);
+  }
+
+  onEnd() {
+    this.sound.stop();
   }
 }
 
 
-/**
- * Klip untuk menampilkan gambar.
- */
-class ImageClip extends BaseClip {
-    constructor(img, startTime, duration, options = {}) {
-        super(startTime, duration);
-        this.img = img;
-        this.options = {
-            x: 0,
-            y: 0,
-            w: width,
-            h: height,
-            ...options
-        };
-    }
+// =============================================================================
+// BAGIAN 5: SISTEM EFEK SEDERHANA
+// Cara mudah untuk menambahkan keyframe umum ke klip.
+// =============================================================================
+class BaseEffect {
+  constructor(duration) {
+    this.duration = duration;
+  }
+  applyTo(clip) {
+    console.error("Metode applyTo() harus diimplementasikan oleh subclass efek.");
+  }
+}
 
-    display(localTime) {
-        // Contoh animasi: Zoom in perlahan
-        const scaleFactor = map(localTime, 0, this.duration, 1, 1.1);
-        const newW = this.options.w * scaleFactor;
-        const newH = this.options.h * scaleFactor;
-        const newX = this.options.x - (newW - this.options.w) / 2;
-        const newY = this.options.y - (newH - this.options.h) / 2;
-        
-        push();
-        imageMode(CORNER);
-        image(this.img, newX, newY, newW, newH);
-        pop();
-    }
+class FadeInEffect extends BaseEffect {
+  constructor(duration = 1.0) {
+    super(duration);
+  }
+  applyTo(clip) {
+    clip.addKeyframe(0, { opacity: 0 });
+    clip.addKeyframe(this.duration, { opacity: 255 });
+  }
+}
+
+class FadeOutEffect extends BaseEffect {
+  constructor(duration = 1.0) {
+    super(duration);
+  }
+  applyTo(clip) {
+    const startTime = clip.duration - this.duration;
+    clip.addKeyframe(startTime, { opacity: 255 });
+    clip.addKeyframe(clip.duration, { opacity: 0 });
+  }
+}
+
+class MoveEffect extends BaseEffect {
+  constructor(startX, startY, endX, endY, duration, easing = Easing.easeInOutQuad) {
+    super(duration);
+    this.startX = startX;
+    this.startY = startY;
+    this.endX = endX;
+    this.endY = endY;
+    this.easing = easing;
+  }
+  applyTo(clip) {
+      clip.addKeyframe(0, { x: this.startX, y: this.startY });
+      clip.addKeyframe(this.duration, { x: this.endX, y: this.endY }, this.easing);
+  }
 }
 
