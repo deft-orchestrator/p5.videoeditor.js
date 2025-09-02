@@ -18,8 +18,8 @@ function preload() {
     amplitude: {
       setInput: () => {},
       getLevel: () => {
-        // Simulate a beat
-        return (sin(timeline.currentTime * PI * 2) + 1) / 2 * 0.5 + 0.1;
+        // Simulate a beat using elapsed time instead of timeline
+        return (sin(millis() / 1000 * PI * 2) + 1) / 2 * 0.5 + 0.1;
       }
     }
   };
