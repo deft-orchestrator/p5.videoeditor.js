@@ -1,20 +1,35 @@
 /*
- * P5.VIDEOEDITOR.JS (v2.0)
- * Library canggih untuk membuat video berbasis kode di p5.js.
- * * FITUR BARU (v2.0):
- * 1. Keyframing: Animasikan properti apa pun di dalam klip.
- * 2. Easing Functions: Kumpulan fungsi untuk animasi yang lebih halus.
- * 3. AudioClip: Tambahkan dan sinkronkan audio dengan mudah (membutuhkan p5.sound).
- * 4. Effect System: Cara sederhana untuk menambahkan animasi umum.
- * 5. Event-Driven Core: Timeline kini menggunakan onStart, onUpdate, onEnd untuk
- * kontrol klip yang lebih tangguh.
+ * P5.VIDEOEDITOR.JS (v2.1)
+ * Sebuah framework canggih untuk membuat video berbasis kode di p5.js.
+ *
+ * * FITUR BARU (v2.1):
+ * 1. Dokumentasi API (JSDoc): Semua class dan metode kini didokumentasikan.
+ * 2. Interpolasi Warna Fleksibel: Keyframe kini mendukung string warna (mis. '#ff0000').
+ * 3. Validasi Properti: Memberikan peringatan jika tipe data di keyframe tidak cocok.
+ *
+ * * FITUR SEBELUMNYA (v2.0):
+ * - Keyframing: Animasikan properti apa pun di dalam klip.
+ * - Easing Functions: Kumpulan fungsi untuk animasi yang lebih halus.
+ * - AudioClip: Tambahkan dan sinkronkan audio dengan mudah (membutuhkan p5.sound).
+ * - Effect System: Cara sederhana untuk menambahkan animasi umum.
+ * - Event-Driven Core: Menggunakan onStart, onUpdate, onEnd untuk kontrol klip.
  */
 
 // =============================================================================
 // BAGIAN 1: EASING FUNCTIONS
-// Kumpulan fungsi untuk membuat animasi terasa lebih natural.
-// Sumber: https://easings.net/
 // =============================================================================
+
+/**
+ * Kumpulan fungsi easing untuk membuat animasi terasa lebih natural dan profesional.
+ * @namespace Easing
+ * @property {function} linear - Transisi linear tanpa percepatan.
+ * @property {function} easeInQuad - Mempercepat dari nol.
+ * @property {function} easeOutQuad - Melambat hingga berhenti.
+ * @property {function} easeInOutQuad - Percepatan di awal dan perlambatan di akhir.
+ * @property {function} easeInCubic - Mempercepat dari nol (lebih tajam dari Quad).
+ * @property {function} easeOutCubic - Melambat hingga berhenti (lebih tajam dari Quad).
+ * @property {function} easeInOutCubic - Percepatan dan perlambatan (lebih tajam dari Quad).
+ */
 const Easing = {
   linear: t => t,
   easeInQuad: t => t * t,
@@ -28,23 +43,39 @@ const Easing = {
 
 // =============================================================================
 // BAGIAN 2: CLASS UTAMA - TIMELINE
-// Menggunakan sistem event (onStart, onUpdate, onEnd) untuk kontrol yang lebih baik.
 // =============================================================================
+
+/**
+ * Mengelola semua klip, waktu, dan siklus hidup (lifecycle) pemutaran video.
+ * Ini adalah orkestrator utama dari library.
+ * @class Timeline
+ */
 class Timeline {
+  /**
+   * @param {number} [frameRate=60] - Target frame rate untuk konsistensi.
+   */
   constructor(frameRate = 60) {
     this.clips = [];
     this.currentTime = 0;
     this.isPlaying = true;
     this.frameRate = frameRate;
     this.lastTime = 0;
-    this.activeClips = new Set(); // Melacak klip yang aktif di frame sebelumnya
+    this.activeClips = new Set();
   }
 
+  /**
+   * Menambahkan sebuah klip ke dalam timeline.
+   * @param {BaseClip} clip - Objek klip yang akan ditambahkan.
+   */
   add(clip) {
     this.clips.push(clip);
     this.clips.sort((a, b) => a.startTime - b.startTime);
   }
 
+  /**
+   * Fungsi inti yang harus dipanggil di dalam loop draw() p5.js.
+   * Memperbarui waktu dan merender semua klip yang aktif.
+   */
   update() {
     if (this.isPlaying) {
       const now = millis();
@@ -65,90 +96,154 @@ class Timeline {
         const localTime = this.currentTime - clip.startTime;
 
         if (!this.activeClips.has(clip)) {
-          clip.onStart(localTime); // Panggil onStart saat klip pertama kali aktif
+          clip.onStart(localTime);
         }
-        clip.onUpdate(localTime); // Panggil onUpdate setiap frame
+        clip.onUpdate(localTime);
       }
     }
 
-    // Periksa klip mana yang sudah tidak aktif lagi
     for (const clip of this.activeClips) {
       if (!currentActiveClips.has(clip)) {
-        clip.onEnd(); // Panggil onEnd saat klip berhenti
+        clip.onEnd();
       }
     }
 
     this.activeClips = currentActiveClips;
   }
 
+  /** Memulai atau melanjutkan pemutaran timeline. */
   play() {
     if (!this.isPlaying) {
       this.isPlaying = true;
       this.lastTime = millis();
     }
   }
+  
+  /** Menjeda pemutaran timeline. */
   pause() { this.isPlaying = false; }
+
+  /**
+   * Melompat ke waktu tertentu di dalam timeline.
+   * @param {number} timeInSeconds - Waktu tujuan dalam detik.
+   */
   seek(timeInSeconds) { this.currentTime = timeInSeconds; }
 }
 
 
 // =============================================================================
-// BAGIAN 3: CLASS DASAR - BASECLIP DENGAN KEMAMPUAN KEYFRAMING
+// BAGIAN 3: CLASS DASAR - BASECLIP
 // =============================================================================
+
+/**
+ * Class dasar abstrak untuk semua jenis klip.
+ * Menyediakan fungsionalitas inti seperti waktu, event, keyframing, dan efek.
+ * @class BaseClip
+ */
 class BaseClip {
+  /**
+   * @param {number} startTime - Waktu mulai klip dalam detik.
+   * @param {number} duration - Durasi klip dalam detik.
+   */
   constructor(startTime, duration) {
     this.startTime = startTime;
     this.duration = duration;
-    
-    // Sistem Keyframing
     this.keyframes = [];
-    this.props = {}; // Properti yang dianimasikan
+    this.props = {};
     this.effects = [];
   }
   
-  // Metode event, di-override oleh subclass
+  /**
+   * Dipanggil sekali saat klip pertama kali menjadi aktif.
+   * @param {number} localTime - Waktu lokal saat klip dimulai.
+   */
   onStart(localTime) {}
+  
+  /**
+   * Dipanggil setiap frame selama klip aktif.
+   * @param {number} localTime - Waktu saat ini di dalam klip (0 s.d. durasi).
+   */
   onUpdate(localTime) {}
+  
+  /** Dipanggil sekali saat klip berhenti menjadi aktif. */
   onEnd() {}
 
-  // --- Sistem Keyframing & Efek ---
+  /**
+   * Menambahkan sebuah keyframe untuk menganimasikan properti.
+   * @param {number} time - Waktu keyframe di dalam durasi klip (dalam detik).
+   * @param {object} properties - Objek berisi properti dan nilainya (mis. { x: 100, opacity: 255 }).
+   * @param {function} [easing=Easing.linear] - Fungsi easing yang akan digunakan.
+   */
   addKeyframe(time, properties, easing = Easing.linear) {
     this.keyframes.push({ time, properties, easing });
     this.keyframes.sort((a, b) => a.time - b.time);
   }
   
+  /**
+   * Menerapkan efek siap pakai ke klip.
+   * @param {BaseEffect} effect - Instance dari sebuah efek (mis. new FadeInEffect()).
+   */
   addEffect(effect) {
     this.effects.push(effect);
     effect.applyTo(this);
   }
 
+  /**
+   * @private
+   * Memperbarui nilai properti (this.props) berdasarkan keyframe pada waktu tertentu.
+   * @param {number} localTime - Waktu saat ini di dalam klip.
+   */
   _updateProperties(localTime) {
     if (this.keyframes.length === 0) return;
 
-    // Temukan keyframe awal dan akhir
     let startFrame = this.keyframes.findLast(kf => kf.time <= localTime);
     let endFrame = this.keyframes.find(kf => kf.time > localTime);
 
-    if (!startFrame && !endFrame) return;
     if (!startFrame) startFrame = endFrame;
     if (!endFrame) endFrame = startFrame;
-    
-    // Interpolasi properti
+    if (!startFrame) return;
+
     for (const key in startFrame.properties) {
       if (key in endFrame.properties) {
         const startTime = startFrame.time;
         const endTime = endFrame.time;
-        const startValue = startFrame.properties[key];
-        const endValue = endFrame.properties[key];
+        let startValue = startFrame.properties[key];
+        let endValue = endFrame.properties[key];
+        
+        if (startTime >= endTime) {
+            this.props[key] = endValue;
+            continue;
+        }
         
         let progress = map(localTime, startTime, endTime, 0, 1, true);
         progress = startFrame.easing(progress);
 
-        if (typeof startValue === 'number') {
+        // Interpolasi Angka
+        if (typeof startValue === 'number' && typeof endValue === 'number') {
           this.props[key] = lerp(startValue, endValue, progress);
-        } else if (startValue instanceof p5.Color) {
-           this.props[key] = lerpColor(startValue, endValue, progress);
+        } 
+        // Interpolasi Warna (Fleksibel: mendukung p5.Color dan string)
+        else {
+            const isStartColor = startValue instanceof p5.Color || typeof startValue === 'string';
+            const isEndColor = endValue instanceof p5.Color || typeof endValue === 'string';
+
+            if (isStartColor && isEndColor) {
+                try {
+                    const sColor = (startValue instanceof p5.Color) ? startValue : color(startValue);
+                    const eColor = (endValue instanceof p5.Color) ? endValue : color(endValue);
+                    this.props[key] = lerpColor(sColor, eColor, progress);
+                } catch (e) {
+                    console.warn(`[P5.VideoEditor] Gagal menginterpolasi properti warna '${key}'. Pastikan nilai adalah format warna yang valid.`);
+                    this.props[key] = startValue;
+                }
+            }
+            // Validasi tipe data jika tidak cocok
+            else if (typeof startValue !== typeof endValue) {
+                console.warn(`[P5.VideoEditor] Tipe data keyframe tidak cocok untuk properti '${key}'. Animasi dihentikan.`);
+                this.props[key] = startValue;
+            }
         }
+      } else {
+        this.props[key] = startFrame.properties[key];
       }
     }
   }
@@ -159,31 +254,28 @@ class BaseClip {
 // BAGIAN 4: JENIS-JENIS KLIP
 // =============================================================================
 
+/** @class VisualClip Class dasar untuk semua klip yang dapat digambar. Menangani update properti dan rendering. */
 class VisualClip extends BaseClip {
   constructor(startTime, duration, options) {
     super(startTime, duration);
-    // Inisialisasi properti dari options
     this.props = { opacity: 255, ...options };
   }
-
   onUpdate(localTime) {
     this._updateProperties(localTime);
     push();
     this.display(localTime);
     pop();
   }
-  
-  // Akan di-override
   display(localTime) {}
 }
 
+/** @class TextClip Klip untuk menampilkan teks. */
 class TextClip extends VisualClip {
   constructor(text, startTime, duration, options = {}) {
     const defaultOptions = { x: width / 2, y: height / 2, size: 48, color: color('white'), align: CENTER };
     super(startTime, duration, { ...defaultOptions, ...options });
     this.text = text;
   }
-
   display() {
     const c = this.props.color;
     fill(red(c), green(c), blue(c), this.props.opacity);
@@ -193,21 +285,19 @@ class TextClip extends VisualClip {
   }
 }
 
+/** @class ShapeClip Klip untuk menampilkan bentuk dasar p5.js (rect, ellipse). */
 class ShapeClip extends VisualClip {
   constructor(shapeType, startTime, duration, options = {}) {
     const defaultOptions = { x: width / 2, y: height / 2, w: 100, h: 100, color: color('red'), stroke: false };
     super(startTime, duration, { ...defaultOptions, ...options });
     this.shapeType = shapeType;
   }
-
   display() {
     const c = this.props.color;
     fill(red(c), green(c), blue(c), this.props.opacity);
     if (this.props.stroke) {
       stroke(this.props.stroke);
-    } else {
-      noStroke();
-    }
+    } else { noStroke(); }
     rectMode(CENTER);
     if (this.shapeType === 'rect') {
       rect(this.props.x, this.props.y, this.props.w, this.props.h);
@@ -217,13 +307,13 @@ class ShapeClip extends VisualClip {
   }
 }
 
+/** @class ImageClip Klip untuk menampilkan gambar. */
 class ImageClip extends VisualClip {
     constructor(img, startTime, duration, options = {}) {
         const defaultOptions = { x: 0, y: 0, w: width, h: height };
         super(startTime, duration, { ...defaultOptions, ...options });
         this.img = img;
     }
-
     display() {
         push();
         tint(255, this.props.opacity);
@@ -234,19 +324,17 @@ class ImageClip extends VisualClip {
 }
 
 /**
- * PENTING: Untuk menggunakan AudioClip, tambahkan library p5.sound.js ke file index.html Anda!
- * <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.9.0/addons/p5.sound.min.js"></script>
+ * Klip untuk memutar file audio. Membutuhkan library p5.sound.
+ * @class AudioClip
  */
 class AudioClip extends BaseClip {
   constructor(soundFile, startTime, duration) {
     super(startTime, duration || soundFile.duration());
     this.sound = soundFile;
   }
-
   onStart(localTime) {
     this.sound.jump(localTime, this.duration - localTime);
   }
-
   onEnd() {
     this.sound.stop();
   }
@@ -254,32 +342,27 @@ class AudioClip extends BaseClip {
 
 
 // =============================================================================
-// BAGIAN 5: SISTEM EFEK SEDERHANA
-// Cara mudah untuk menambahkan keyframe umum ke klip.
+// BAGIAN 5: SISTEM EFEK
 // =============================================================================
+
+/** @class BaseEffect Class dasar abstrak untuk semua efek. */
 class BaseEffect {
-  constructor(duration) {
-    this.duration = duration;
-  }
-  applyTo(clip) {
-    console.error("Metode applyTo() harus diimplementasikan oleh subclass efek.");
-  }
+  constructor(duration) { this.duration = duration; }
+  applyTo(clip) { console.error("Metode applyTo() harus diimplementasikan."); }
 }
 
+/** @class FadeInEffect Efek untuk membuat klip memudar masuk (fade in). */
 class FadeInEffect extends BaseEffect {
-  constructor(duration = 1.0) {
-    super(duration);
-  }
+  constructor(duration = 1.0) { super(duration); }
   applyTo(clip) {
     clip.addKeyframe(0, { opacity: 0 });
     clip.addKeyframe(this.duration, { opacity: 255 });
   }
 }
 
+/** @class FadeOutEffect Efek untuk membuat klip memudar keluar (fade out). */
 class FadeOutEffect extends BaseEffect {
-  constructor(duration = 1.0) {
-    super(duration);
-  }
+  constructor(duration = 1.0) { super(duration); }
   applyTo(clip) {
     const startTime = clip.duration - this.duration;
     clip.addKeyframe(startTime, { opacity: 255 });
@@ -287,13 +370,12 @@ class FadeOutEffect extends BaseEffect {
   }
 }
 
+/** @class MoveEffect Efek untuk menggerakkan klip dari satu titik ke titik lain. */
 class MoveEffect extends BaseEffect {
   constructor(startX, startY, endX, endY, duration, easing = Easing.easeInOutQuad) {
     super(duration);
-    this.startX = startX;
-    this.startY = startY;
-    this.endX = endX;
-    this.endY = endY;
+    this.startX = startX; this.startY = startY;
+    this.endX = endX; this.endY = endY;
     this.easing = easing;
   }
   applyTo(clip) {
