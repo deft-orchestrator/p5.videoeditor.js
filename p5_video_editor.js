@@ -1,19 +1,18 @@
 /*
- * P5.VIDEOEDITOR.JS (v3.6) - The Motion Design Framework
+ * P5.VIDEOEDITOR.JS (v3.7) - The Motion Design Framework
  * Sebuah framework canggih untuk membuat video berbasis kode di p5.js.
  *
- * * FITUR BARU (v3.6):
- * 1. SISTEM EFEK DINAMIS: Memperkenalkan `DynamicEffect` yang berjalan setiap frame
- * untuk animasi prosedural. Efek kini bisa memiliki metode `update()`.
- * 2. EFEK BARU: Menambahkan `WiggleEffect` (menggoyangkan properti),
- * `TypewriterEffect` (menampilkan teks huruf per huruf), dan
- * `AudioReactiveEffect` (menganimasikan properti berdasarkan suara).
- * 3. AUDIO ANALYSIS: `AudioClip` kini secara otomatis menyertakan p5.Amplitude
- * untuk memungkinkan efek audio-reaktif.
+ * * FITUR BARU (v3.7):
+ * 1. WAKTU BERBASIS FRAME: Arsitektur waktu inti kini sepenuhnya berbasis frame
+ * (`currentTime = currentFrame / frameRate`) untuk output yang 100% deterministik
+ * dan bebas dari glitch, standar untuk rendering video profesional.
+ * 2. MODUL EKSPOR BAWAAN: Memperkenalkan `timeline.startExport()`, `timeline.captureFrame()`,
+ * dan `timeline.stopExport()` yang terintegrasi dengan CCapture.js untuk
+ * memudahkan proses rendering video langsung dari kode.
  *
  * * FITUR SEBELUMNYA:
- * - Mode debug visual, nama klip, parenting, easing per-properti, grup klip,
- * transisi, masking, dan efek shader.
+ * - Sistem efek dinamis (Wiggle, Typewriter, AudioReactive), mode debug visual,
+ * parenting, easing per-properti, grup klip, transisi, masking, dan efek shader.
  */
 
 // =============================================================================
@@ -40,12 +39,17 @@ class Timeline {
     this.clips = [];
     this.transitions = [];
     this.currentTime = 0;
+    this.currentFrame = 0;
     this.isPlaying = true;
     this.frameRate = frameRate;
-    this.lastTime = 0;
     this.activeClips = new Set();
     this.debug = false;
     this.debugOptions = {};
+
+    // Properti untuk modul ekspor
+    this.isExporting = false;
+    this.capturer = null;
+    this.exportOptions = {};
   }
 
   add(clip) {
@@ -59,22 +63,16 @@ class Timeline {
 
   setDebug(enabled, options = {}) {
       this.debug = enabled;
-      const defaultOptions = {
-          textColor: 'white',
-          strokeColor: 'rgba(255,0,255,0.75)',
-          timelineColor: 'rgba(255,255,255,0.5)',
-          playheadColor: 'magenta',
-      };
+      const defaultOptions = { textColor: 'white', strokeColor: 'rgba(255,0,255,0.75)', timelineColor: 'rgba(255,255,255,0.5)', playheadColor: 'magenta' };
       this.debugOptions = { ...defaultOptions, ...options };
   }
 
   update() {
+    // Perbarui waktu berdasarkan frame, bukan deltaTime, untuk output yang deterministik
     if (this.isPlaying) {
-      const now = millis();
-      const deltaTime = (now - this.lastTime) / 1000.0;
-      this.currentTime += deltaTime;
-      this.lastTime = now;
+      this.currentFrame++;
     }
+    this.currentTime = this.currentFrame / this.frameRate;
 
     const currentActiveClips = new Set();
     const activeVisualClips = [];
@@ -163,11 +161,12 @@ class Timeline {
     pop();
   }
 
-  play() { if (!this.isPlaying) { this.isPlaying = true; this.lastTime = millis(); } }
+  play() { this.isPlaying = true; }
   pause() { this.isPlaying = false; }
   seek(timeInSeconds, forceUpdate = true) {
-    this.currentTime = timeInSeconds;
-    this.lastTime = millis();
+    this.currentFrame = Math.round(timeInSeconds * this.frameRate);
+    this.currentTime = this.currentFrame / this.frameRate;
+
     if (forceUpdate) {
       for (const clip of this.activeClips) if (clip instanceof AudioClip) clip.sound.stop();
       this.activeClips.clear();
@@ -177,9 +176,54 @@ class Timeline {
       this.isPlaying = wasPlaying;
     }
   }
+
+  // --- MODUL EKSPOR ---
+  startExport(options = {}) {
+    if (typeof CCapture === 'undefined') {
+      throw new Error('[P5.VideoEditor] Exporting requires the CCapture.js library. Please include it in your HTML file.');
+    }
+    const { duration, format = 'webm', framerate = this.frameRate, verbose = true } = options;
+    if (!duration) {
+      throw new Error('[P5.VideoEditor] Export "duration" must be specified in options.');
+    }
+
+    this.exportOptions = { duration, framerate };
+    this.capturer = new CCapture({ format, framerate, verbose });
+    this.isExporting = true;
+    
+    this.frameRate = framerate; // Sesuaikan frameRate timeline dengan ekspor
+    this.seek(0, true);
+    this.isPlaying = true;
+
+    this.capturer.start();
+    console.log(`[P5.VideoEditor] Export started. Capturing ${duration * framerate} frames.`);
+  }
+
+  captureFrame(canvasElement) {
+    if (!this.isExporting || !this.capturer) return;
+
+    this.capturer.capture(canvasElement || p5.instance._renderer.elt);
+
+    if (this.currentTime >= this.exportOptions.duration) {
+      this.stopExport();
+    }
+  }
+
+  stopExport() {
+    if (!this.isExporting || !this.capturer) return;
+
+    console.log('[P5.VideoEditor] Finalizing video... this may take a moment.');
+    this.capturer.stop();
+    this.capturer.save();
+
+    this.capturer = null;
+    this.isExporting = false;
+    this.seek(0, true); // Reset timeline
+    console.log('[P5.VideoEditor] Export finished.');
+  }
 }
 
-
+// ... Sisa kode (BAGIAN 3, 4, 5) tetap sama seperti v3.6 ...
 // =============================================================================
 // BAGIAN 3: CLASS DASAR - BASECLIP & VISUALCLIP
 // =============================================================================
@@ -199,9 +243,7 @@ class BaseClip {
   onStart(localTime) {}
   onUpdate(localTime) {
     this.currentLocalTime = localTime;
-    // 1. Hitung properti dari keyframe terlebih dahulu
     this._updateProperties(localTime);
-    // 2. Terapkan efek dinamis setelahnya, yang memodifikasi properti
     for (const effect of this.effects) {
       if (effect.update) {
         effect.update(this, localTime);
@@ -272,7 +314,7 @@ class VisualClip extends BaseClip {
 // =============================================================================
 // BAGIAN 4: JENIS-JENIS KLIP
 // =============================================================================
-class ClipGroup extends VisualClip { /* Implementasi sama seperti v3.1 */ constructor(startTime, duration, options = {}) { super(startTime, duration, options); this.internalTimeline = new Timeline(); this.internalTimeline.isPlaying = false; } add(clip) { this.internalTimeline.add(clip); } onUpdate(localTime) { super.onUpdate(localTime); } display() { this.internalTimeline.seek(this.currentLocalTime, true); } }
+class ClipGroup extends VisualClip { constructor(startTime, duration, options = {}) { super(startTime, duration, options); this.internalTimeline = new Timeline(); this.internalTimeline.isPlaying = false; } add(clip) { this.internalTimeline.add(clip); } onUpdate(localTime) { super.onUpdate(localTime); } display() { this.internalTimeline.seek(this.currentLocalTime, true); } }
 class TextClip extends VisualClip {
   constructor(text, startTime, duration, options = {}) {
     const d = { x: width / 2, y: height / 2, size: 48, color: color('white'), align: CENTER };
@@ -285,13 +327,12 @@ class TextClip extends VisualClip {
     fill(c);
     textAlign(this.props.align, CENTER);
     textSize(this.props.size);
-    // Gunakan displayText jika ada (untuk TypewriterEffect), jika tidak, gunakan teks asli.
     const textToShow = this.props.displayText !== undefined ? this.props.displayText : this.text;
     text(textToShow, 0, 0);
   }
 }
-class ShapeClip extends VisualClip { /* Implementasi sama seperti v3.1 */ constructor(shapeType, startTime, duration, options = {}) { const d = { x: width / 2, y: height / 2, w: 100, h: 100, color: color('red'), stroke: false }; super(startTime, duration, { ...d, ...options }); this.shapeType = shapeType; } display() { const c = color(this.props.color); c.setAlpha(this.props.opacity); fill(c); if (this.props.stroke) { stroke(this.props.stroke); } else { noStroke(); } rectMode(CENTER); if (this.shapeType === 'rect') { rect(0, 0, this.props.w, this.props.h); } else if (this.shapeType === 'ellipse') { ellipse(0, 0, this.props.w, this.props.h); } } }
-class ImageClip extends VisualClip { /* Implementasi sama seperti v3.1 */ constructor(img, startTime, duration, options = {}) { const d = { x: width/2, y: height/2, w: img.width, h: img.height, tintColor: color(255) }; super(startTime, duration, { ...d, ...options }); this.img = img; } display() { const t = color(this.props.tintColor); t.setAlpha(this.props.opacity); tint(t); imageMode(CENTER); image(this.img, 0, 0, this.props.w, this.props.h); } }
+class ShapeClip extends VisualClip { constructor(shapeType, startTime, duration, options = {}) { const d = { x: width / 2, y: height / 2, w: 100, h: 100, color: color('red'), stroke: false }; super(startTime, duration, { ...d, ...options }); this.shapeType = shapeType; } display() { const c = color(this.props.color); c.setAlpha(this.props.opacity); fill(c); if (this.props.stroke) { stroke(this.props.stroke); } else { noStroke(); } rectMode(CENTER); if (this.shapeType === 'rect') { rect(0, 0, this.props.w, this.props.h); } else if (this.shapeType === 'ellipse') { ellipse(0, 0, this.props.w, this.props.h); } } }
+class ImageClip extends VisualClip { constructor(img, startTime, duration, options = {}) { const d = { x: width/2, y: height/2, w: img.width, h: img.height, tintColor: color(255) }; super(startTime, duration, { ...d, ...options }); this.img = img; } display() { const t = color(this.props.tintColor); t.setAlpha(this.props.opacity); tint(t); imageMode(CENTER); image(this.img, 0, 0, this.props.w, this.props.h); } }
 class AudioClip extends BaseClip {
   constructor(soundFile, startTime, duration, options) {
     if (typeof p5.SoundFile === 'undefined' || typeof p5.Amplitude === 'undefined') {
@@ -306,8 +347,8 @@ class AudioClip extends BaseClip {
   onEnd() { this.sound.stop(); }
   getLevel() { return this.analyzer.getLevel(); }
 }
-class FunctionClip extends BaseClip { /* Implementasi sama seperti v3.1 */ constructor(callback, startTime, duration) { super(startTime, duration); if (typeof callback !== 'function') throw new Error('[P5.VideoEditor] Callback must be a function.'); this.callback = callback; } onUpdate(localTime) { this.callback({ localTime, progress: localTime / this.duration, clip: this }); } }
-class ShaderEffectClip extends VisualClip { /* Implementasi sama seperti v3.4 */ constructor(shader, startTime, duration) { super(startTime, duration, { x: width / 2, y: height / 2 }); this.shader = shader; } display() { shader(this.shader); this.shader.setUniform('u_resolution', [width, height]); this.shader.setUniform('u_time', this.currentLocalTime); for(const key in this.props) { if(key.startsWith('u_')) { this.shader.setUniform(key, this.props[key]); } } rect(0, 0, width, height); resetShader(); } }
+class FunctionClip extends BaseClip { constructor(callback, startTime, duration) { super(startTime, duration); if (typeof callback !== 'function') throw new Error('[P5.VideoEditor] Callback must be a function.'); this.callback = callback; } onUpdate(localTime) { this.callback({ localTime, progress: localTime / this.duration, clip: this }); } }
+class ShaderEffectClip extends VisualClip { constructor(shader, startTime, duration) { super(startTime, duration, { x: width / 2, y: height / 2 }); this.shader = shader; } display() { shader(this.shader); this.shader.setUniform('u_resolution', [width, height]); this.shader.setUniform('u_time', this.currentLocalTime); for(const key in this.props) { if(key.startsWith('u_')) { this.shader.setUniform(key, this.props[key]); } } rect(0, 0, width, height); resetShader(); } }
 
 
 // =============================================================================
@@ -323,12 +364,7 @@ class RotateEffect extends BaseEffect { constructor(sA, eA, duration, easing = E
 
 /** @class DynamicEffect Dasar untuk efek yang berjalan setiap frame. */
 class DynamicEffect extends BaseEffect {
-  constructor() { super(0); /* Durasi tidak relevan untuk efek dinamis */ }
-  /**
-   * Metode ini dipanggil setiap frame saat klip induknya aktif.
-   * @param {BaseClip} clip - Klip tempat efek ini diterapkan.
-   * @param {number} localTime - Waktu lokal di dalam klip (dalam detik).
-   */
+  constructor() { super(0); }
   update(clip, localTime) {}
 }
 
