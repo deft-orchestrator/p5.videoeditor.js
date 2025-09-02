@@ -1,18 +1,17 @@
 /*
- * P5.VIDEOEDITOR.JS (v3.0) - The Motion Design Framework
+ * P5.VIDEOEDITOR.JS (v3.1) - The Motion Design Framework
  * Sebuah framework canggih untuk membuat video berbasis kode di p5.js.
  *
- * * FITUR BARU (v3.0):
- * 1. HIERARKI KLIP (PARENTING): Klip visual kini dapat memiliki induk,
- * memungkinkan transformasi berantai yang kompleks (`clip.setParent(otherClip)`).
- * 2. EASING PER PROPERTI: Setiap properti dalam sebuah keyframe kini dapat
- * memiliki fungsi easing-nya sendiri untuk kontrol animasi tingkat lanjut.
- * 3. GRUP KLIP (PRE-COMPS): Memperkenalkan `ClipGroup` untuk mengelompokkan
- * beberapa klip menjadi satu unit yang dapat digunakan kembali.
+ * * FITUR BARU (v3.1):
+ * 1. TRANSFORMASI PADA CLIPGROUP: `ClipGroup` kini mewarisi dari `VisualClip`,
+ * memungkinkannya untuk ditransformasi (posisi, rotasi, skala) sebagai satu unit.
+ * 2. PENINGKATAN KEJELASAN: Mengganti nama parameter `globalEasing` menjadi
+ * `fallbackEasing` untuk deskripsi yang lebih akurat.
  *
- * * Arsitektur Rendering Diperbarui:
- * - Logika `update()` di Timeline kini memisahkan pembaruan properti dan rendering.
- * - `VisualClip` kini memiliki metode `render()` untuk menangani hierarki.
+ * * FITUR SEBELUMNYA (v3.0):
+ * - HIERARKI KLIP (PARENTING): Klip visual dapat memiliki induk.
+ * - EASING PER PROPERTI: Kontrol easing untuk setiap properti.
+ * - GRUP KLIP (PRE-COMPS): Mengelompokkan klip menjadi satu unit.
  */
 
 // =============================================================================
@@ -113,14 +112,17 @@ class BaseClip {
     this.effects = [];
     this.resetOnEnd = options.resetOnEnd || false;
     this.initialProps = {};
+    this.currentLocalTime = 0; // Untuk menyimpan waktu lokal saat ini
   }
   
   onStart(localTime) {}
-  onUpdate(localTime) {}
+  onUpdate(localTime) {
+    this.currentLocalTime = localTime;
+  }
   onEnd() { if (this.resetOnEnd) this.props = { ...this.initialProps }; }
 
-  addKeyframe(time, properties, globalEasing = Easing.linear) {
-    this.keyframes.push({ time, properties, globalEasing });
+  addKeyframe(time, properties, fallbackEasing = Easing.linear) {
+    this.keyframes.push({ time, properties, fallbackEasing });
     this.keyframes.sort((a, b) => a.time - b.time);
   }
 
@@ -153,7 +155,7 @@ class BaseClip {
       if (key in endFrame.properties) {
         const startProp = this._getPropDetails(startFrame.properties[key]);
         const endProp = this._getPropDetails(endFrame.properties[key]);
-        const easing = endProp.easing || startFrame.globalEasing;
+        const easing = endProp.easing || startFrame.fallbackEasing;
         
         let progress = map(localTime, startFrame.time, endFrame.time, 0, 1, true);
         if (progress > 0 && progress < 1) progress = easing(progress);
@@ -175,7 +177,10 @@ class VisualClip extends BaseClip {
     this.children = [];
   }
 
-  onUpdate(localTime) { this._updateProperties(localTime); }
+  onUpdate(localTime) {
+    super.onUpdate(localTime); // Menyimpan localTime
+    this._updateProperties(localTime);
+  }
   
   setParent(parentClip) {
     if (this.parent) this.parent._removeChild(this);
@@ -206,21 +211,23 @@ class VisualClip extends BaseClip {
 // =============================================================================
 // BAGIAN 4: JENIS-JENIS KLIP (TERMASUK CLIPGROUP BARU)
 // =============================================================================
-class ClipGroup extends BaseClip {
-  constructor(startTime, duration) {
-    super(startTime, duration);
+class ClipGroup extends VisualClip {
+  constructor(startTime, duration, options = {}) {
+    super(startTime, duration, options);
     this.internalTimeline = new Timeline();
     this.internalTimeline.isPlaying = false; // Dikontrol oleh timeline utama
-    this.parent = null; // Agar bisa di-render
-    this.children = []; // Agar bisa di-render
   }
+
   add(clip) { this.internalTimeline.add(clip); }
+
   onUpdate(localTime) {
-    this.internalTimeline.seek(localTime, false);
-    this.internalTimeline.update();
+    super.onUpdate(localTime); // Penting untuk memperbarui properti & localTime
   }
-  render() {
-    // Rendering ditangani oleh update() internal timeline, jadi fungsi ini kosong.
+
+  display() {
+    // Metode ini secara paksa menyinkronkan dan merender timeline internal
+    // di dalam ruang transformasi (matriks) dari grup ini.
+    this.internalTimeline.seek(this.currentLocalTime, true);
   }
 }
 
