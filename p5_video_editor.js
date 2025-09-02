@@ -1,14 +1,17 @@
 /*
- * P5.VIDEOEDITOR.JS (v3.4) - The Motion Design Framework
+ * P5.VIDEOEDITOR.JS (v3.5) - The Motion Design Framework
  * Sebuah framework canggih untuk membuat video berbasis kode di p5.js.
  *
- * * FITUR BARU (v3.4):
- * 1. PENYEMPURNAAN KODE: Menyederhanakan pemanggilan render di dalam logika
- * masking untuk meningkatkan keterbacaan tanpa mengubah fungsionalitas.
+ * * FITUR BARU (v3.5):
+ * 1. MODE DEBUG VISUAL: Memperkenalkan `timeline.setDebug(true)` untuk menampilkan
+ * lapisan visual (overlay) yang berisi bounding box, info klip, dan mini-timeline,
+ * sangat membantu dalam proses debugging adegan yang kompleks.
+ * 2. NAMA KLIP: Setiap klip kini dapat diberi nama (`name`) melalui opsi
+ * di constructor untuk identifikasi yang lebih mudah saat debugging.
  *
- * * FITUR SEBELUMNYA (v3.3):
- * - PERBAIKAN MASKING: Sinkronisasi waktu dan siklus hidup klip topeng.
- * - BUFFER GRAFIS ROBUST: Buffer masking kini menyesuaikan diri dengan ukuran kanvas.
+ * * FITUR SEBELUMNYA:
+ * - Penyempurnaan kode, perbaikan masking, buffer grafis robust, transisi,
+ * efek shader, parenting, easing per-properti, dan grup klip.
  */
 
 // =============================================================================
@@ -39,6 +42,8 @@ class Timeline {
     this.frameRate = frameRate;
     this.lastTime = 0;
     this.activeClips = new Set();
+    this.debug = false;
+    this.debugOptions = {};
   }
 
   add(clip) {
@@ -48,6 +53,17 @@ class Timeline {
 
   addTransition(transition) {
     this.transitions.push(transition);
+  }
+
+  setDebug(enabled, options = {}) {
+      this.debug = enabled;
+      const defaultOptions = {
+          textColor: 'white',
+          strokeColor: 'rgba(255,0,255,0.75)',
+          timelineColor: 'rgba(255,255,255,0.5)',
+          playheadColor: 'magenta',
+      };
+      this.debugOptions = { ...defaultOptions, ...options };
   }
 
   update() {
@@ -100,6 +116,69 @@ class Timeline {
     for (const clip of activeVisualClips) {
       if (!clip.parent) clip.render();
     }
+
+    // --- TAHAP 3: RENDER DEBUG OVERLAY (JIKA AKTIF) ---
+    if (this.debug) {
+      this._renderDebugOverlay();
+    }
+  }
+
+  _renderDebugOverlay() {
+    push();
+    // --- Gambar info untuk setiap klip aktif ---
+    for (const clip of this.activeClips) {
+        if (clip instanceof VisualClip) {
+            push();
+            // Terapkan transformasi untuk menggambar info debug di tempat yang benar
+            translate(clip.props.x, clip.props.y);
+            translate(clip.props.originX, clip.props.originY);
+            rotate(clip.props.rotation);
+            scale(clip.props.scale);
+            translate(-clip.props.originX, -clip.props.originY);
+
+            // Bounding Box
+            stroke(this.debugOptions.strokeColor);
+            strokeWeight(2);
+            noFill();
+            if (clip.props.w && clip.props.h) {
+                 rectMode(CENTER);
+                 rect(0, 0, clip.props.w, clip.props.h);
+            }
+
+            // Info Teks
+            noStroke();
+            fill(this.debugOptions.textColor);
+            textAlign(LEFT, BOTTOM);
+            textSize(12);
+            const infoText = `[${clip.name}]\nTime: ${clip.currentLocalTime.toFixed(2)}s\nPos: ${clip.props.x.toFixed(0)}, ${clip.props.y.toFixed(0)}`;
+            // Gambar teks sedikit di luar bounding box
+            text(infoText, (clip.props.w / 2 || 50) + 5, -(clip.props.h / 2 || 50));
+            pop();
+        }
+    }
+    
+    // --- Gambar mini timeline bar di bagian bawah ---
+    const timelineY = height - 20;
+    const totalDuration = this.clips.reduce((max, c) => Math.max(max, c.startTime + c.duration), 0);
+    
+    stroke(this.debugOptions.timelineColor);
+    strokeWeight(4);
+    line(10, timelineY, width - 10, timelineY);
+    
+    // Gambar playhead
+    const playheadX = map(this.currentTime, 0, totalDuration, 10, width - 10, true);
+    stroke(this.debugOptions.playheadColor);
+    strokeWeight(8);
+    line(playheadX, timelineY - 5, playheadX, timelineY + 5);
+    
+    // Gambar teks waktu
+    noStroke();
+    fill(this.debugOptions.textColor);
+    textAlign(CENTER, BOTTOM);
+    textSize(14);
+    text(`${this.currentTime.toFixed(2)}s / ${totalDuration.toFixed(2)}s`, playheadX, timelineY - 10);
+
+    pop();
   }
 
   play() { if (!this.isPlaying) { this.isPlaying = true; this.lastTime = millis(); } }
@@ -132,6 +211,8 @@ class BaseClip {
     this.resetOnEnd = options.resetOnEnd || false;
     this.initialProps = {};
     this.currentLocalTime = 0;
+    // Beri nama default berdasarkan nama class, atau gunakan nama dari opsi
+    this.name = options.name || this.constructor.name;
   }
   
   onStart(localTime) {}
@@ -183,8 +264,6 @@ class VisualClip extends BaseClip {
     super.onUpdate(localTime);
     this._updateProperties(localTime);
     if (this.mask) {
-      // Update mask menggunakan localTime dari klip ini untuk memastikan sinkronisasi yang sempurna.
-      // Ini memperlakukan animasi mask seolah-olah relatif terhadap durasi klip induk.
       this.mask.onUpdate(localTime);
     }
   }
@@ -216,29 +295,23 @@ class VisualClip extends BaseClip {
   }
 
   _renderWithMask() {
-    // Buat ulang buffer jika tidak ada atau jika ukuran kanvas berubah.
     if (!this._contentGfx || this._contentGfx.width !== width || this._contentGfx.height !== height) {
         this._contentGfx = createGraphics(width, height);
         this._maskGfx = createGraphics(width, height);
     }
     
-    // 1. Gambar konten ke buffer konten
     this._contentGfx.clear();
     this._contentGfx.push();
     this._contentGfx.translate(this.props.x, this.props.y);
-    // ... (transformasi lainnya)
-    this.display(); // Disederhanakan dari .call()
+    this.display();
     this._contentGfx.pop();
 
-    // 2. Gambar topeng ke buffer topeng
     this._maskGfx.clear();
-    this.mask.render(); // Disederhanakan dari .call()
+    this.mask.render();
 
-    // 3. Aplikasikan topeng
     let maskedContent = this._contentGfx.get();
     maskedContent.mask(this._maskGfx.get());
     
-    // 4. Gambar hasil akhir ke kanvas utama
     image(maskedContent, 0, 0);
   }
 
@@ -264,10 +337,8 @@ class ShaderEffectClip extends VisualClip {
   }
   display() {
     shader(this.shader);
-    // Kirim uniform umum yang bisa berguna
     this.shader.setUniform('u_resolution', [width, height]);
     this.shader.setUniform('u_time', this.currentLocalTime);
-    // Animasikan uniform lainnya melalui this.props
     for(const key in this.props) {
         if(key.startsWith('u_')) {
             this.shader.setUniform(key, this.props[key]);
