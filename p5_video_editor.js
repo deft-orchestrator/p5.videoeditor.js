@@ -1,18 +1,17 @@
 /*
- * P5.VIDEOEDITOR.JS (v2.1)
+ * P5.VIDEOEDITOR.JS (v2.2)
  * Sebuah framework canggih untuk membuat video berbasis kode di p5.js.
  *
- * * FITUR BARU (v2.1):
- * 1. Dokumentasi API (JSDoc): Semua class dan metode kini didokumentasikan.
- * 2. Interpolasi Warna Fleksibel: Keyframe kini mendukung string warna (mis. '#ff0000').
- * 3. Validasi Properti: Memberikan peringatan jika tipe data di keyframe tidak cocok.
+ * * FITUR BARU (v2.2):
+ * 1. Refaktor Interpolasi: Logika interpolasi di `_updateProperties` diekstrak ke
+ * fungsi helper `_interpolateValue` untuk keterbacaan dan ekstensibilitas.
+ * 2. Pengecekan Dependensi: `AudioClip` kini akan memberikan error yang jelas jika
+ * library p5.sound.js tidak dimuat.
  *
- * * FITUR SEBELUMNYA (v2.0):
- * - Keyframing: Animasikan properti apa pun di dalam klip.
- * - Easing Functions: Kumpulan fungsi untuk animasi yang lebih halus.
- * - AudioClip: Tambahkan dan sinkronkan audio dengan mudah (membutuhkan p5.sound).
- * - Effect System: Cara sederhana untuk menambahkan animasi umum.
- * - Event-Driven Core: Menggunakan onStart, onUpdate, onEnd untuk kontrol klip.
+ * * FITUR SEBELUMNYA (v2.1):
+ * - Dokumentasi API (JSDoc): Semua class dan metode didokumentasikan.
+ * - Interpolasi Warna Fleksibel: Keyframe kini mendukung string warna.
+ * - Validasi Properti: Memberikan peringatan jika tipe data di keyframe tidak cocok.
  */
 
 // =============================================================================
@@ -189,6 +188,44 @@ class BaseClip {
 
   /**
    * @private
+   * Menginterpolasi nilai antara dua keyframe berdasarkan tipe datanya.
+   * @param {*} startVal - Nilai awal.
+   * @param {*} endVal - Nilai akhir.
+   * @param {number} progress - Progres interpolasi (0.0 s.d. 1.0).
+   * @returns {*} Nilai yang telah diinterpolasi.
+   */
+  _interpolateValue(startVal, endVal, progress) {
+    // 1. Interpolasi Angka
+    if (typeof startVal === 'number' && typeof endVal === 'number') {
+        return lerp(startVal, endVal, progress);
+    }
+
+    // 2. Interpolasi Warna
+    const isStartColor = startVal instanceof p5.Color || typeof startVal === 'string';
+    const isEndColor = endVal instanceof p5.Color || typeof endVal === 'string';
+    if (isStartColor && isEndColor) {
+        try {
+            const sColor = (startVal instanceof p5.Color) ? startVal : color(startVal);
+            const eColor = (endVal instanceof p5.Color) ? endVal : color(endVal);
+            return lerpColor(sColor, eColor, progress);
+        } catch (e) {
+            console.warn(`[P5.VideoEditor] Gagal menginterpolasi warna. Format tidak valid.`);
+            return startVal; // Kembali ke nilai awal jika gagal
+        }
+    }
+
+    // 3. Validasi Tipe Data
+    if (typeof startVal !== typeof endVal) {
+        console.warn(`[P5.VideoEditor] Tipe data keyframe tidak cocok. Animasi dihentikan.`);
+        return startVal;
+    }
+
+    // Default: jika tidak ada interpolasi yang cocok, kembalikan nilai awal
+    return startVal;
+  }
+  
+  /**
+   * @private
    * Memperbarui nilai properti (this.props) berdasarkan keyframe pada waktu tertentu.
    * @param {number} localTime - Waktu saat ini di dalam klip.
    */
@@ -206,42 +243,21 @@ class BaseClip {
       if (key in endFrame.properties) {
         const startTime = startFrame.time;
         const endTime = endFrame.time;
-        let startValue = startFrame.properties[key];
-        let endValue = endFrame.properties[key];
         
         if (startTime >= endTime) {
-            this.props[key] = endValue;
+            this.props[key] = endFrame.properties[key];
             continue;
         }
-        
+
         let progress = map(localTime, startTime, endTime, 0, 1, true);
         progress = startFrame.easing(progress);
 
-        // Interpolasi Angka
-        if (typeof startValue === 'number' && typeof endValue === 'number') {
-          this.props[key] = lerp(startValue, endValue, progress);
-        } 
-        // Interpolasi Warna (Fleksibel: mendukung p5.Color dan string)
-        else {
-            const isStartColor = startValue instanceof p5.Color || typeof startValue === 'string';
-            const isEndColor = endValue instanceof p5.Color || typeof endValue === 'string';
-
-            if (isStartColor && isEndColor) {
-                try {
-                    const sColor = (startValue instanceof p5.Color) ? startValue : color(startValue);
-                    const eColor = (endValue instanceof p5.Color) ? endValue : color(endValue);
-                    this.props[key] = lerpColor(sColor, eColor, progress);
-                } catch (e) {
-                    console.warn(`[P5.VideoEditor] Gagal menginterpolasi properti warna '${key}'. Pastikan nilai adalah format warna yang valid.`);
-                    this.props[key] = startValue;
-                }
-            }
-            // Validasi tipe data jika tidak cocok
-            else if (typeof startValue !== typeof endValue) {
-                console.warn(`[P5.VideoEditor] Tipe data keyframe tidak cocok untuk properti '${key}'. Animasi dihentikan.`);
-                this.props[key] = startValue;
-            }
-        }
+        // Panggil fungsi helper yang sudah direfaktor
+        this.props[key] = this._interpolateValue(
+            startFrame.properties[key],
+            endFrame.properties[key],
+            progress
+        );
       } else {
         this.props[key] = startFrame.properties[key];
       }
@@ -329,6 +345,9 @@ class ImageClip extends VisualClip {
  */
 class AudioClip extends BaseClip {
   constructor(soundFile, startTime, duration) {
+    if (typeof p5.SoundFile === 'undefined') {
+        throw new Error('[P5.VideoEditor] AudioClip membutuhkan library p5.sound. Harap muat p5.sound.js terlebih dahulu.');
+    }
     super(startTime, duration || soundFile.duration());
     this.sound = soundFile;
   }
