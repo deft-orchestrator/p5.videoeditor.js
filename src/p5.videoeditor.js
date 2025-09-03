@@ -354,6 +354,9 @@ class BaseClip {
       return;
     }
     this.effects.push(effect);
+    if (effect.applyTo) {
+      effect.applyTo(this);
+    }
   }
 
   /** @private */
