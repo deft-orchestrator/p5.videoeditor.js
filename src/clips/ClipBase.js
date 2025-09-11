@@ -44,7 +44,7 @@ class ClipBase {
 
     // 2. Calculate new values based on keyframes
     for (const prop in this.keyframes) {
-      if (this.keyframes.hasOwnProperty(prop)) {
+      if (Object.prototype.hasOwnProperty.call(this.keyframes, prop)) {
         this.properties[prop] = this._calculateValue(p, prop, relativeTime);
       }
     }
