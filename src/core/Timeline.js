@@ -13,6 +13,12 @@ class Timeline {
     this.clips.sort((a, b) => a.layer - b.layer);
   }
 
+  getActiveClips() {
+    return this.clips.filter(clip =>
+      this.time >= clip.start && this.time < (clip.start + clip.duration)
+    );
+  }
+
   // The main update loop for the timeline and its clips
   update(p) {
     if (this.isPlaying) {
@@ -24,21 +30,17 @@ class Timeline {
     }
 
     // Update all active clips
-    this.clips.forEach(clip => {
-      if (this.time >= clip.start && this.time < (clip.start + clip.duration)) {
-        const relativeTime = this.time - clip.start;
-        clip.update(p, relativeTime);
-      }
+    this.getActiveClips().forEach(clip => {
+      const relativeTime = this.time - clip.start;
+      clip.update(p, relativeTime);
     });
   }
 
   // The render method is now only responsible for drawing
   render(p) {
-    this.clips.forEach(clip => {
-      if (this.time >= clip.start && this.time < (clip.start + clip.duration)) {
-        const relativeTime = this.time - clip.start;
-        clip.render(p, relativeTime);
-      }
+    this.getActiveClips().forEach(clip => {
+      const relativeTime = this.time - clip.start;
+      clip.render(p, relativeTime);
     });
   }
 }

@@ -2,10 +2,11 @@ import Keyframe from '../core/Keyframe.js';
 import Easing from '../utils/Easing.js';
 
 class ClipBase {
-  constructor({ start = 0, duration = 1000, layer = 0, ...options } = {}) {
+  constructor({ start = 0, duration = 1000, layer = 0, assetKey = null, ...options } = {}) {
     this.start = start;
     this.duration = duration;
     this.layer = layer;
+    this.assetKey = assetKey;
 
     this.properties = {
       x: 0,

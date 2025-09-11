@@ -293,8 +293,8 @@ let availablePlugins = await p5.VideoEditor.browseCommunityPlugins({
 - [x] Keyframe system
 - [x] Basic effects (fade, scale, rotate)
 - [x] Testing framework
-- [ ] Performance optimization engine
-- [ ] Memory management system
+- [x] Performance optimization engine
+- [x] Memory management system
 - [ ] Error handling & validation
 - [ ] Audio integration basics
 
