@@ -71,17 +71,17 @@ describe('StaticEffects', () => {
     });
 
     test('should not affect opacity outside its duration', () => {
-        const fadeOut = new FadeOutEffect({ start: 100, duration: 500 });
+      const fadeOut = new FadeOutEffect({ start: 100, duration: 500 });
 
-        // Before the effect
-        mockClip.properties.opacity = 1;
-        fadeOut.apply(mockClip, mockP5, 50);
-        expect(mockClip.properties.opacity).toBe(1);
+      // Before the effect
+      mockClip.properties.opacity = 1;
+      fadeOut.apply(mockClip, mockP5, 50);
+      expect(mockClip.properties.opacity).toBe(1);
 
-        // After the effect
-        mockClip.properties.opacity = 1;
-        fadeOut.apply(mockClip, mockP5, 700);
-        expect(mockClip.properties.opacity).toBe(1);
-      });
+      // After the effect
+      mockClip.properties.opacity = 1;
+      fadeOut.apply(mockClip, mockP5, 700);
+      expect(mockClip.properties.opacity).toBe(1);
+    });
   });
 });
