@@ -24,7 +24,9 @@ class ClipBase {
   }
 
   addKeyframe(property, time, value, easing = 'linear') {
-    if (!this.properties.hasOwnProperty(property)) {
+
+    if (!Object.prototype.hasOwnProperty.call(this.properties, property)) {
+
       console.warn(`Property "${property}" is not a recognized property of this clip.`);
     }
     if (!this.keyframes[property]) {
