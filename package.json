@@ -1,0 +1,37 @@
+{
+  "name": "p5.videoeditor.js",
+  "version": "0.0.1",
+  "description": "A motion timeline library for p5.js",
+  "type": "module",
+  "main": "src/p5.videoeditor.js",
+  "scripts": {
+    "test": "node --experimental-vm-modules node_modules/jest/bin/jest.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/deft-orchestrator/p5.videoeditor.js.git"
+  },
+  "keywords": [
+    "p5.js",
+    "p5",
+    "video",
+    "editor",
+    "timeline",
+    "animation",
+    "motion",
+    "graphics"
+  ],
+  "author": "",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/deft-orchestrator/p5.videoeditor.js/issues"
+  },
+  "homepage": "https://github.com/deft-orchestrator/p5.videoeditor.js#readme",
+  "devDependencies": {
+    "jest": "^29.7.0",
+    "p5": "^1.9.0"
+  },
+  "peerDependencies": {
+    "p5": ">=1.0.0"
+  }
+}
