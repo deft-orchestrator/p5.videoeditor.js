@@ -5,7 +5,7 @@ import {
   ShapeClip,
   FadeInEffect,
   FadeOutEffect
-} from '../../../src/p5.videoeditor.js';
+} from '../../src/p5.videoeditor.js';
 
 let editor;
 
