@@ -13,7 +13,7 @@ class ClipBase {
       rotation: 0,
       scale: 1,
       opacity: 1,
-      ...options,
+      ...(options.properties || {}),
     };
 
     // Store a copy of the initial properties to reset to on each frame
