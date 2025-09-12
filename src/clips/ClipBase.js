@@ -29,7 +29,7 @@ class ClipBase {
   addKeyframe(property, time, value, easing = 'linear') {
     if (!Object.prototype.hasOwnProperty.call(this.properties, property)) {
       // Fail-fast: Throw a critical error if the property doesn't exist.
-      ErrorHandler.critical(`Property "${property}" is not a recognized or animatable property of this clip.`);
+      throw new Error(`Property "${property}" is not a recognized or animatable property of this clip.`);
     }
 
     if (!this.keyframes[property]) {
