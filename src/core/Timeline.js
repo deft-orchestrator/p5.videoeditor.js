@@ -5,6 +5,7 @@ class Timeline {
     this.clips = [];
     this.time = 0;
     this.isPlaying = false;
+    this._activeClips = []; // Cache for active clips
 
     // For batch operations
     this.isBatching = false;
@@ -60,8 +61,11 @@ class Timeline {
       }
     }
 
+    // Update the cache of active clips
+    this._activeClips = this.getActiveClips();
+
     // Update all active clips
-    this.getActiveClips().forEach(clip => {
+    this._activeClips.forEach(clip => {
       const relativeTime = this.time - clip.start;
       clip.update(p, relativeTime);
     });
@@ -69,7 +73,8 @@ class Timeline {
 
   // The render method is now only responsible for drawing
   render(p) {
-    this.getActiveClips().forEach(clip => {
+    // Use the cached list of active clips
+    this._activeClips.forEach(clip => {
       const relativeTime = this.time - clip.start;
       clip.render(p, relativeTime);
     });
