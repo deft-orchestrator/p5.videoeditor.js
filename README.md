@@ -41,7 +41,6 @@ p5.videoeditor.js/
 │   │   ├── Keyframe.js             # Keyframe system
 │   │   ├── PlaybackController.js   # Play/pause/seek controls
 │   │   ├── PerformanceManager.js   # NEW: Performance optimization
-│   │   └── BatchOperations.js      # NEW: Batch timeline operations
 │   ├── clips/
 │   │   ├── ClipBase.js             # Base clip class
 │   │   ├── TextClip.js             # Text rendering
@@ -214,9 +213,20 @@ timeline.batch(() => {
 let titleClip = editor.createTextClip("Title", editor.presets.centeredFadeIn);
 let logoClip = editor.createImageClip("logo.png", editor.presets.slideFromLeft);
 
+// Add an audio clip
+let audioClip = editor.createAudioClip("path/to/sound.mp3", {
+  start: 0,
+  duration: 10000
+});
+// You can keyframe audio properties like volume
+audioClip.addKeyframe('volume', 0, 0); // Start silent
+audioClip.addKeyframe('volume', 1000, 1); // Fade in over 1s
+audioClip.addKeyframe('volume', 9000, 1); // Hold volume
+audioClip.addKeyframe('volume', 10000, 0); // Fade out at the end
+
 // Audio-reactive Effects
-let audioClip = editor.createAudioClip("music.mp3");
-textClip.addAudioReactiveEffect("scale", audioClip, {
+let musicTrack = editor.createAudioClip("music.mp3");
+textClip.addAudioReactiveEffect("scale", musicTrack, {
   frequency: "bass", // bass, mid, treble, all
   intensity: 2,
   smoothing: 0.8
@@ -295,8 +305,8 @@ let availablePlugins = await p5.VideoEditor.browseCommunityPlugins({
 - [x] Testing framework
 - [x] Performance optimization engine
 - [x] Memory management system
-- [ ] Error handling & validation
-- [ ] Audio integration basics
+- [x] Error handling & validation
+- [x] Audio integration basics
 
 ### **Phase 2: Visual Tools + Advanced Features** 🔄
 - [ ] Visual curve editor dan timeline UI
