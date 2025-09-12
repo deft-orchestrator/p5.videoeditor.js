@@ -1,5 +1,6 @@
 import Keyframe from '../core/Keyframe.js';
 import Easing from '../utils/Easing.js';
+import ErrorHandler from '../utils/ErrorHandler.js';
 
 class ClipBase {
   constructor({ start = 0, duration = 1000, layer = 0, assetKey = null, ...options } = {}) {
@@ -26,11 +27,11 @@ class ClipBase {
   }
 
   addKeyframe(property, time, value, easing = 'linear') {
-
     if (!Object.prototype.hasOwnProperty.call(this.properties, property)) {
-
-      console.warn(`Property "${property}" is not a recognized property of this clip.`);
+      // Fail-fast: Throw a critical error if the property doesn't exist.
+      ErrorHandler.critical(`Property "${property}" is not a recognized or animatable property of this clip.`);
     }
+
     if (!this.keyframes[property]) {
       this.keyframes[property] = [];
     }
