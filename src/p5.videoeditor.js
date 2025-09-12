@@ -1,5 +1,7 @@
 import Timeline from './core/Timeline.js';
 import PlaybackController from './core/PlaybackController.js';
+import PerformanceManager from './core/PerformanceManager.js';
+import MemoryManager from './utils/MemoryManager.js';
 import ClipBase from './clips/ClipBase.js';
 import TextClip from './clips/TextClip.js';
 import ShapeClip from './clips/ShapeClip.js';
@@ -13,6 +15,8 @@ class VideoEditor {
   constructor(options = {}) {
     this.timeline = new Timeline(options);
     this.playbackController = new PlaybackController(this.timeline);
+    this.performanceManager = new PerformanceManager(options.performance);
+    this.memoryManager = new MemoryManager();
 
     // Expose playback controls directly on the editor instance
     this.play = this.playbackController.play.bind(this.playbackController);
@@ -25,9 +29,25 @@ class VideoEditor {
     return clip; // Return the clip for chaining
   }
 
+  /**
+   * Caches an asset manually. Useful for preloading.
+   * @param {string} key - The key to store the asset under.
+   * @param {*} asset - The asset to cache.
+   */
+  cacheAsset(key, asset) {
+    this.memoryManager.addAsset(key, asset);
+  }
+
   // The user must call these methods from their p5.js sketch's draw loop.
   update(p) {
+    this.performanceManager.monitor(p);
     this.timeline.update(p);
+
+    // Automatically clear unused assets from memory
+    const activeAssetKeys = this.timeline.getActiveClips()
+      .map(clip => clip.assetKey)
+      .filter(key => key); // Filter out null/undefined keys
+    this.memoryManager.clearUnusedAssets(activeAssetKeys);
   }
 
   render(p) {
@@ -40,6 +60,8 @@ export {
   VideoEditor,
   Timeline,
   PlaybackController,
+  PerformanceManager,
+  MemoryManager,
   ClipBase,
   TextClip,
   ShapeClip,
