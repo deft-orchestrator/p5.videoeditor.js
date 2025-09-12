@@ -48,6 +48,18 @@ describe('StaticEffects', () => {
       fadeIn.apply(mockClip, mockP5, 700);
       expect(mockClip.properties.opacity).toBe(1);
     });
+
+    test('should correctly apply fade-in to a non-default initial opacity', () => {
+        const fadeIn = new FadeInEffect({ duration: 1000 });
+        mockClip.properties.opacity = 0.5; // Set a non-default initial opacity
+
+        // Halfway through the effect
+        fadeIn.apply(mockClip, mockP5, 500);
+        // At t=0.5, the fade-in factor is lerp(0, 1, 0.5) = 0.5.
+        // This factor is multiplied by the clip's current opacity.
+        // Expected: 0.5 (initial opacity) * 0.5 (fade-in factor) = 0.25
+        expect(mockClip.properties.opacity).toBeCloseTo(0.25);
+    });
   });
 
   describe('FadeOutEffect', () => {
