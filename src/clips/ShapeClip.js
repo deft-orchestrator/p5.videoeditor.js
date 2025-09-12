@@ -1,11 +1,32 @@
 import ClipBase from './ClipBase.js';
 
+/**
+ * @class ShapeClip
+ * @extends ClipBase
+ * @description A clip for drawing and animating basic p5.js shapes like rectangles and ellipses.
+ *
+ * @param {string} [shapeType='rect'] - The type of shape to draw ('rect' or 'ellipse').
+ * @param {object} [options={}] - Configuration options for the shape clip. Inherits options from ClipBase.
+ * @param {number} [options.width=100] - The width of the shape.
+ * @param {number} [options.height=100] - The height of the shape.
+ * @param {p5.Color|string} [options.fill='#ffffff'] - The fill color of the shape.
+ * @param {p5.Color|string} [options.stroke='#000000'] - The stroke color of the shape.
+ * @param {number} [options.strokeWeight=1] - The stroke weight of the shape.
+ *
+ * @example
+ * let rectClip = editor.createShapeClip('rect', {
+ *   start: 0,
+ *   duration: 3000,
+ *   properties: { width: 50, height: 50, fill: 'red' }
+ * });
+ * rectClip.addKeyframe('rotation', 0, 0);
+ * rectClip.addKeyframe('rotation', 3000, Math.PI * 2);
+ */
 class ShapeClip extends ClipBase {
   constructor(shapeType = 'rect', options = {}) {
     super(options);
     this.shapeType = shapeType;
 
-    // Shape-specific properties
     this.properties.width = options.width || 100;
     this.properties.height = options.height || 100;
     this.properties.fill = options.fill || '#ffffff';
@@ -13,6 +34,12 @@ class ShapeClip extends ClipBase {
     this.properties.strokeWeight = options.strokeWeight || 1;
   }
 
+  /**
+   * Renders the shape to the canvas with its current properties and transformations.
+   * This method is called automatically by the timeline in the draw loop.
+   * @param {p5} p - The p5.js instance.
+   * @param {number} relativeTime - The current time within the clip's duration.
+   */
   render(p, relativeTime) {
     super.render(p, relativeTime);
 
@@ -21,13 +48,12 @@ class ShapeClip extends ClipBase {
     p.strokeWeight(this.properties.strokeWeight);
 
     if (this.shapeType === 'rect') {
-      p.rectMode(p.CENTER); // draw from center to align with x,y
+      p.rectMode(p.CENTER);
       p.rect(0, 0, this.properties.width, this.properties.height);
     } else if (this.shapeType === 'ellipse') {
       p.ellipseMode(p.CENTER);
       p.ellipse(0, 0, this.properties.width, this.properties.height);
     }
-    // can add more shapes later
 
     p.pop();
   }

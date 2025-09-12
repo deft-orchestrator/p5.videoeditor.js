@@ -1,5 +1,9 @@
 # p5.videoeditor.js - Motion Timeline Library for p5.js
 
+## 🚧 Current Status
+
+This project is currently in active development. The documentation below describes the long-term vision and target architecture of the library. While some features are already implemented, many are still in progress. We welcome contributors to help us realize this vision.
+
 ## 🎯 **Project Vision**
 
 **p5.videoeditor.js** adalah addon library untuk p5.js yang menyediakan sistem timeline, keyframe animation, dan motion graphics yang modular dan extensible. Library ini dirancang sebagai core engine untuk berbagai aplikasi motion content.

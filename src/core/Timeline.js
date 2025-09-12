@@ -1,30 +1,48 @@
+/**
+ * @class Timeline
+ * @description Manages the collection of clips, their timing, and the overall playback state.
+ * It is the central component that orchestrates the animation.
+ */
 class Timeline {
+  /**
+   * @constructor
+   * @param {object} [options={}] - Configuration options for the timeline.
+   * @param {number} [options.frameRate=60] - The target frame rate for the animation.
+   * @param {number} [options.duration=10000] - The total duration of the timeline in milliseconds.
+   */
   constructor({ frameRate = 60, duration = 10000 } = {}) {
     this.frameRate = frameRate;
-    this.duration = duration; // in milliseconds
+    this.duration = duration;
     this.clips = [];
     this.time = 0;
     this.isPlaying = false;
-    this._activeClips = []; // Cache for active clips
+    this._activeClips = [];
 
-    // For batch operations
     this.isBatching = false;
     this.dirtyClips = new Set();
     this.needsClipSorting = false;
   }
 
+  /**
+   * Adds a clip to the timeline.
+   * @param {ClipBase} clip - The clip instance to add.
+   */
   addClip(clip) {
     this.clips.push(clip);
-    clip.timeline = this; // Give clip a reference back to the timeline
+    clip.timeline = this;
 
     if (this.isBatching) {
       this.needsClipSorting = true;
     } else {
-      // Sort clips by layer to ensure correct render order
       this.clips.sort((a, b) => a.layer - b.layer);
     }
   }
 
+  /**
+   * Groups multiple clip or keyframe additions into a single operation to optimize performance.
+   * Keyframes and clips are sorted only once at the end of the batch.
+   * @param {Function} callback - A function that contains the operations to be batched.
+   */
   batch(callback) {
     this.isBatching = true;
     try {
@@ -35,6 +53,10 @@ class Timeline {
     }
   }
 
+  /**
+   * @private
+   * Finalizes batch operations by sorting dirty clips and layers.
+   */
   finalizeBatch() {
     this.dirtyClips.forEach(clip => clip.finalizeChanges());
     this.dirtyClips.clear();
@@ -45,50 +67,65 @@ class Timeline {
     }
   }
 
+  /**
+   * Gets all clips that are active at the current time.
+   * @returns {ClipBase[]} An array of active clips.
+   */
   getActiveClips() {
     return this.clips.filter(clip =>
       this.time >= clip.start && this.time < (clip.start + clip.duration)
     );
   }
 
-  // The main update loop for the timeline and its clips
+  /**
+   * The main update loop for the timeline. It advances the time and updates all active clips.
+   * @param {p5} p - The p5.js instance.
+   */
   update(p) {
     if (this.isPlaying) {
       this.time += p.deltaTime;
-      // Simple loop for now
       if (this.time > this.duration) {
-        this.time = 0;
+        this.time = 0; // Simple loop
       }
     }
 
-    // Update the cache of active clips
     this._activeClips = this.getActiveClips();
 
-    // Update all active clips
     this._activeClips.forEach(clip => {
       const relativeTime = this.time - clip.start;
       clip.update(p, relativeTime);
     });
   }
 
-  // The render method is now only responsible for drawing
+  /**
+   * Renders all active clips to the canvas.
+   * @param {p5} p - The p5.js instance.
+   */
   render(p) {
-    // Use the cached list of active clips
     this._activeClips.forEach(clip => {
       const relativeTime = this.time - clip.start;
       clip.render(p, relativeTime);
     });
   }
 
-  // Public methods to control playback state
+  /**
+   * Starts or resumes playback.
+   */
   play() {
     this.isPlaying = true;
   }
 
+  /**
+   * Pauses playback.
+   */
   pause() {
     this.isPlaying = false;
   }
 
+  /**
+   * Seeks to a specific time in the timeline.
+   * @param {number} time - The time to seek to, in milliseconds.
+   */
   seek(time) {
     if (time >= 0 && time <= this.duration) {
       this.time = time;
