@@ -80,23 +80,34 @@ class ClipBase {
       return this.initialProperties[prop];
     }
 
+    // Handle edge cases: time is before the first keyframe or after the last one
     if (time <= kfs[0].time) {
       return kfs[0].value;
     }
-
     if (time >= kfs[kfs.length - 1].time) {
       return kfs[kfs.length - 1].value;
     }
 
-    let prevKeyframe = kfs[0];
-    let nextKeyframe = kfs[kfs.length - 1];
-    for (let i = 0; i < kfs.length - 1; i++) {
-      if (time >= kfs[i].time && time <= kfs[i + 1].time) {
-        prevKeyframe = kfs[i];
-        nextKeyframe = kfs[i + 1];
-        break;
+    // Binary search to find the index of the keyframe just before the current time
+    let low = 0;
+    let high = kfs.length - 1;
+    let prevKeyframeIndex = 0; // Will hold the index of the keyframe to the left
+
+    while (low <= high) {
+      const mid = Math.floor((low + high) / 2);
+      if (kfs[mid].time < time) {
+        prevKeyframeIndex = mid;
+        low = mid + 1;
+      } else if (kfs[mid].time > time) {
+        high = mid - 1;
+      } else {
+        // Exact match found, return the value directly
+        return kfs[mid].value;
       }
     }
+
+    const prevKeyframe = kfs[prevKeyframeIndex];
+    const nextKeyframe = kfs[prevKeyframeIndex + 1];
 
     const t = (time - prevKeyframe.time) / (nextKeyframe.time - prevKeyframe.time);
     const easingFunction = Easing[prevKeyframe.easing] || Easing.linear;

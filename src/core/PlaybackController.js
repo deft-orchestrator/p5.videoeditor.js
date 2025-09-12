@@ -4,17 +4,15 @@ class PlaybackController {
   }
 
   play() {
-    this.timeline.isPlaying = true;
+    this.timeline.play();
   }
 
   pause() {
-    this.timeline.isPlaying = false;
+    this.timeline.pause();
   }
 
   seek(time) {
-    if (time >= 0 && time <= this.timeline.duration) {
-      this.timeline.time = time;
-    }
+    this.timeline.seek(time);
   }
 }
 

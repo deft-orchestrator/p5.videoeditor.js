@@ -79,6 +79,21 @@ class Timeline {
       clip.render(p, relativeTime);
     });
   }
+
+  // Public methods to control playback state
+  play() {
+    this.isPlaying = true;
+  }
+
+  pause() {
+    this.isPlaying = false;
+  }
+
+  seek(time) {
+    if (time >= 0 && time <= this.duration) {
+      this.time = time;
+    }
+  }
 }
 
 export default Timeline;
