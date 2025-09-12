@@ -7,6 +7,7 @@ class ClipBase {
     this.duration = duration;
     this.layer = layer;
     this.assetKey = assetKey;
+    this.timeline = null; // Will be set by the timeline upon adding
 
     this.properties = {
       x: 0,
@@ -34,11 +35,25 @@ class ClipBase {
       this.keyframes[property] = [];
     }
     this.keyframes[property].push(new Keyframe(time, value, easing));
-    this.keyframes[property].sort((a, b) => a.time - b.time);
+
+    if (this.timeline && this.timeline.isBatching) {
+      this.timeline.dirtyClips.add(this);
+    } else {
+      this.keyframes[property].sort((a, b) => a.time - b.time);
+    }
   }
 
   addEffect(effect) {
     this.effects.push(effect);
+  }
+
+  finalizeChanges() {
+    // Sort all keyframe arrays that might have been modified during a batch operation
+    for (const prop in this.keyframes) {
+      if (Object.prototype.hasOwnProperty.call(this.keyframes, prop)) {
+        this.keyframes[prop].sort((a, b) => a.time - b.time);
+      }
+    }
   }
 
   update(p, relativeTime) {
