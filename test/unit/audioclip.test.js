@@ -98,4 +98,19 @@ describe('AudioClip', () => {
     // Render doesn't do anything, just call it to ensure no errors
     expect(() => audioClip.render(mockP5, 0)).not.toThrow();
   });
+
+  test('update() should not call stop() again if already stopped', () => {
+    // Start playing
+    audioClip.update(mockP5, 500);
+    expect(audioClip._isPlaying).toBe(true);
+
+    // Stop playing
+    audioClip.update(mockP5, 6000);
+    expect(audioClip._isPlaying).toBe(false);
+    expect(mockSoundFile.stop).toHaveBeenCalledTimes(1);
+
+    // Update again outside the clip
+    audioClip.update(mockP5, 7000);
+    expect(mockSoundFile.stop).toHaveBeenCalledTimes(1); // Should not be called again
+  });
 });
