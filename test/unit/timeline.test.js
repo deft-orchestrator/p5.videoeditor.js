@@ -61,11 +61,54 @@ describe('Timeline', () => {
     expect(timeline.time).toBe(0);
   });
 
-  test('should loop when time exceeds duration', () => {
+  test('should loop frame-accurately when time exceeds duration', () => {
     timeline.isPlaying = true;
     timeline.time = 4990;
     timeline.update(mockP5); // time becomes 5006
-    expect(timeline.time).toBe(0);
+    expect(timeline.time).toBe(6); // 5006 % 5000 = 6
+  });
+});
+
+describe('Timeline Update Logic', () => {
+  let timeline;
+  let mockP5;
+  let mockCanvas;
+  let clip1, clip2;
+
+  beforeEach(() => {
+    mockP5 = { deltaTime: 16, createGraphics: jest.fn(() => ({})) };
+    mockCanvas = { width: 100, height: 100, toDataURL: () => '' };
+    timeline = new Timeline(mockP5, mockCanvas, { duration: 5000 });
+
+    clip1 = new ClipBase({ start: 0, duration: 1000 }); // Active from 0-1000
+    clip2 = new ClipBase({ start: 900, duration: 1000 }); // Active from 900-1900
+
+    // Mock the update method to track calls
+    clip1.update = jest.fn();
+    clip2.update = jest.fn();
+
+    timeline.addClip(clip1);
+    timeline.addClip(clip2);
+  });
+
+  test('should update clips that are part of an active transition', () => {
+    // Transition from clip1 to clip2, from time 950 to 1050
+    const mockTransition = {
+      fromClip: clip1,
+      toClip: clip2,
+      start: 950,
+      duration: 100,
+    };
+    timeline.transitions.push(mockTransition);
+
+    // At time 1010, clip1 is technically no longer active (start:0, duration:1000)
+    // But it should still be updated because it's part of the active transition.
+    timeline.time = 1010;
+    timeline.update(mockP5);
+
+    // Both clips should have their update methods called
+    expect(clip1.update).toHaveBeenCalledTimes(1);
+    expect(clip2.update).toHaveBeenCalledTimes(1);
   });
 });
 

@@ -39,6 +39,11 @@ export class PluginManager {
       return;
     }
 
+    if (this.plugins.some(p => p.name === plugin.name)) {
+      console.warn(`Plugin with name "${plugin.name}" is already registered.`);
+      return;
+    }
+
     this.plugins.push(plugin);
   }
 }

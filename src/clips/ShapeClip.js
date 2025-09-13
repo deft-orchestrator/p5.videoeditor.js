@@ -24,14 +24,18 @@ import ClipBase from './ClipBase.js';
  */
 class ShapeClip extends ClipBase {
   constructor(shapeType = 'rect', options = {}) {
-    super(options);
+    super({
+      ...options,
+      properties: {
+        width: 100,
+        height: 100,
+        fill: '#ffffff',
+        stroke: '#000000',
+        strokeWeight: 1,
+        ...(options.properties || {}),
+      },
+    });
     this.shapeType = shapeType;
-
-    this.properties.width = options.width || 100;
-    this.properties.height = options.height || 100;
-    this.properties.fill = options.fill || '#ffffff';
-    this.properties.stroke = options.stroke || '#000000';
-    this.properties.strokeWeight = options.strokeWeight || 1;
   }
 
   /**

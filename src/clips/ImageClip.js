@@ -20,7 +20,14 @@ class ImageClip extends ClipBase {
     if (typeof image === 'string' && !options.assetKey) {
       options.assetKey = image;
     }
-    super(options);
+    super({
+      ...options,
+      properties: {
+        width: image ? image.width : 0,
+        height: image ? image.height : 0,
+        ...(options.properties || {}),
+      },
+    });
     this.image = image;
   }
 
@@ -36,7 +43,7 @@ class ImageClip extends ClipBase {
     if (this.image) {
       // TODO: Handle opacity with p.tint()
       p.imageMode(p.CENTER);
-      p.image(this.image, 0, 0);
+      p.image(this.image, 0, 0, this.properties.width, this.properties.height);
     }
 
     p.pop();

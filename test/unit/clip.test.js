@@ -1,3 +1,4 @@
+import { jest } from '@jest/globals';
 import ClipBase from '../../src/clips/ClipBase.js';
 import Easing from '../../src/utils/Easing.js';
 
@@ -11,7 +12,32 @@ describe('ClipBase', () => {
       lerp: (start, end, t) => start * (1 - t) + end * t,
     };
     // Initialize ClipBase with some custom initial properties
-    clip = new ClipBase({ properties: { x: 100, y: 50, scale: 1 } });
+    clip = new ClipBase({ properties: { x: 100, y: 50, scale: 1, color: '#ff0000' } });
+  });
+
+  test('should interpolate colors using lerpColor', () => {
+    // A simple class mock to make `instanceof` work
+    class MockP5Color {
+      constructor(val) { this.value = val; }
+    }
+
+    const red = new MockP5Color('red');
+    const blue = new MockP5Color('blue');
+
+    mockP5.Color = MockP5Color;
+    mockP5.lerpColor = jest.fn().mockReturnValue('purple'); // Mock return value
+
+    clip.properties.color = red; // Set initial property
+    clip.addKeyframe('color', 1000, red);
+    clip.addKeyframe('color', 2000, blue);
+
+    // Manually trigger the update with the mocked p5 instance
+    clip.update(mockP5, 1500);
+
+    // Verify that lerpColor was called with the correct arguments
+    expect(mockP5.lerpColor).toHaveBeenCalledWith(red, blue, 0.5);
+    // Verify that the property was updated with the result of lerpColor
+    expect(clip.properties.color).toBe('purple');
   });
 
   test('should hold initial property values', () => {

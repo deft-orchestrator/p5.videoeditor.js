@@ -99,22 +99,10 @@ describe('VideoClip', () => {
   });
 
   describe('Time Synchronization', () => {
-    test('should set video currentTime correctly based on timeline time', () => {
-      // 1500ms into the clip
+    test('should NOT set video currentTime during normal playback', () => {
+      // During a normal update, currentTime should not be touched for performance reasons.
       videoClip.update(mockP5, 1500);
-      expect(mockVideoElement.currentTimeSetter).toHaveBeenCalledWith(1.5);
-    });
-
-    test('should set video currentTime to 0 at the start of the clip', () => {
-      // Exactly at the start
-      videoClip.update(mockP5, 0);
-      expect(mockVideoElement.currentTimeSetter).toHaveBeenCalledWith(0);
-    });
-
-    test('should set video currentTime correctly near the end of the clip', () => {
-      // 4999ms into the clip
-      videoClip.update(mockP5, 4999);
-      expect(mockVideoElement.currentTimeSetter).toHaveBeenCalledWith(4.999);
+      expect(mockVideoElement.currentTimeSetter).not.toHaveBeenCalled();
     });
   });
 });

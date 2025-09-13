@@ -1,5 +1,5 @@
 import { describe, beforeEach, test, expect, jest } from '@jest/globals';
-import CrossFadeTransition from '../../../src/transitions/CrossFadeTransition.js';
+import { CrossFadeTransition } from '../../../src/plugins/CrossFadeTransitionPlugin.js';
 
 describe('CrossFadeTransition', () => {
   let fromClip, toClip, transition, mockP5;

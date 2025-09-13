@@ -8,8 +8,7 @@ import TextClip from './clips/TextClip.js';
 import ShapeClip from './clips/ShapeClip.js';
 import ImageClip from './clips/ImageClip.js';
 import AudioClip from './clips/AudioClip.js';
-import { FadeInEffect, FadeOutEffect } from './effects/StaticEffects.js';
-import WiggleEffect from './effects/WiggleEffect.js';
+import VideoClip from './clips/VideoClip.js';
 import EffectBase from './effects/EffectBase.js';
 
 /**
@@ -20,14 +19,26 @@ import EffectBase from './effects/EffectBase.js';
  *
  * @example
  * let editor = new VideoEditor();
- * function setup() {
- *   createCanvas(400, 400);
- *   editor.createTextClip("Hello World", { start: 0, duration: 5 });
+ * let myFont;
+ *
+ * function preload() {
+ *   myFont = loadFont('assets/font.otf');
  * }
- * function draw() {
+ *
+ * function setup() {
+ *   createCanvas(1280, 720);
+ *   editor.createVideoClip('assets/background.mp4', { start: 0, duration: 10 });
+ *   const title = editor.createTextClip("Hello World", { start: 1, duration: 5 });
+ *   title.addKeyframe('x', 0, 100);
+ *   title.addKeyframe('x', 5000, 500);
+ * }
+ *
+ * // The draw loop needs to be async if using shaders, but it's good practice
+ * // to make it async anyway to handle any future async rendering tasks.
+ * async function draw() {
  *   background(0);
  *   editor.update(p5.instance);
- *   editor.render(p5.instance);
+ *   await editor.render(p5.instance);
  * }
  */
 class VideoEditor {
@@ -58,6 +69,18 @@ class VideoEditor {
     this.play = this.playbackController.play.bind(this.playbackController);
     this.pause = this.playbackController.pause.bind(this.playbackController);
     this.seek = this.playbackController.seek.bind(this.playbackController);
+  }
+
+  /**
+   * Creates a video clip and adds it to the timeline.
+   * @param {string} videoSrc - The source URL of the video file.
+   * @param {object} [options={}] - Configuration options for the VideoClip.
+   * @returns {VideoClip} The newly created VideoClip instance.
+   */
+  createVideoClip(videoSrc, options = {}) {
+    const clip = new VideoClip(videoSrc, options);
+    this.timeline.addClip(clip);
+    return clip;
   }
 
   /**
@@ -138,8 +161,8 @@ class VideoEditor {
    * called in the `draw` loop of your p5.js sketch, after `update`.
    * @param {p5} p - The p5.js instance, used for drawing operations.
    */
-  render(p) {
-    this.timeline.render(p);
+  async render(p) {
+    await this.timeline.render(p);
   }
 
   /**
@@ -165,8 +188,6 @@ export {
   ShapeClip,
   ImageClip,
   AudioClip,
+  VideoClip,
   EffectBase,
-  FadeInEffect,
-  FadeOutEffect,
-  WiggleEffect,
 };
