@@ -5,7 +5,7 @@ import TransitionBase from '../transitions/TransitionBase.js';
  * @extends TransitionBase
  * @description A transition that fades out the `fromClip` while fading in the `toClip`.
  */
-class CrossFadeTransition extends TransitionBase {
+export class CrossFadeTransition extends TransitionBase {
   /**
    * @constructor
    * @param {object} options - The configuration object for the transition.

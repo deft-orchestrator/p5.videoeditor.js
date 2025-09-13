@@ -22,7 +22,6 @@ class Timeline {
     this.transitions = [];
     this.time = 0;
     this.isPlaying = false;
-    this._clipsToProcessThisFrame = [];
 
     this.isBatching = false;
     this.dirtyClips = new Set();
@@ -91,8 +90,7 @@ class Timeline {
   addTransition(options) {
     const TransitionClass = this.transitionTypes.get(options.type);
     if (!TransitionClass) {
-      // In a real application, you might use ErrorHandler here.
-      console.error(`Unknown transition type: ${options.type}`);
+      ErrorHandler.error(`Unknown transition type: ${options.type}`);
       return null;
     }
     const transition = new TransitionClass(options);
@@ -152,15 +150,22 @@ class Timeline {
 
     if (this.isPlaying) {
       this.time += p.deltaTime;
-      if (this.time > this.duration) {
-        this.time = 0; // Simple loop
+      if (this.time >= this.duration) {
+        this.time %= this.duration; // Frame-accurate loop
       }
     }
 
-    const clipsToUpdate = new Set(this.getActiveClips());
+    const clipsToUpdate = new Set();
+
+    // Add all clips that are currently active
+    for (const clip of this.clips) {
+        if (this.time >= clip.start && this.time < (clip.start + clip.duration)) {
+            clipsToUpdate.add(clip);
+        }
+    }
 
     // Add clips from active transitions to ensure they are updated,
-    // even if they are no longer technically "active".
+    // even if they are outside their normal active window.
     for (const transition of this.transitions) {
       if (this.time >= transition.start && this.time < (transition.start + transition.duration)) {
         clipsToUpdate.add(transition.fromClip);
@@ -168,10 +173,8 @@ class Timeline {
       }
     }
 
-    this._clipsToProcessThisFrame = Array.from(clipsToUpdate);
-
     // Call update on every clip that needs processing for this frame.
-    for (const clip of this._clipsToProcessThisFrame) {
+    for (const clip of clipsToUpdate) {
       const relativeTime = this.time - clip.start;
       clip.update(p, relativeTime);
     }
@@ -181,8 +184,25 @@ class Timeline {
    * Renders the current state of the timeline by delegating to the RenderEngine.
    * @param {p5} p - The p5.js instance (passed for consistency, but RenderEngine already has it).
    */
-  render(p) {
-    this.renderEngine.render(this._clipsToProcessThisFrame, this.transitions, this.time);
+  async render(p) {
+    const clipsToRender = new Set();
+    for (const clip of this.clips) {
+        if (this.time >= clip.start && this.time < (clip.start + clip.duration)) {
+            clipsToRender.add(clip);
+        }
+    }
+
+    const activeTransitions = [];
+    for (const transition of this.transitions) {
+        if (this.time >= transition.start && this.time < (transition.start + transition.duration)) {
+            activeTransitions.push(transition);
+            // Ensure both clips involved in the transition are considered for rendering
+            clipsToRender.add(transition.fromClip);
+            clipsToRender.add(transition.toClip);
+        }
+    }
+
+    await this.renderEngine.render(clipsToRender, activeTransitions, this.time);
   }
 
   /**
@@ -219,8 +239,7 @@ class Timeline {
       try {
         plugin.onLoad(this);
       } catch (error) {
-        // In a real application, you might use ErrorHandler here.
-        console.error(`Error loading plugin: ${plugin.name}`, error);
+        ErrorHandler.error(`Error loading plugin: ${plugin.name}`, error);
       }
     }
   }

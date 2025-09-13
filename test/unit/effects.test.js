@@ -1,4 +1,5 @@
-import { FadeInEffect, FadeOutEffect } from '../../src/effects/StaticEffects.js';
+import { FadeInEffect } from '../../src/plugins/FadeInEffectPlugin.js';
+import { FadeOutEffect } from '../../src/plugins/FadeOutEffectPlugin.js';
 
 describe('StaticEffects', () => {
   let mockClip;

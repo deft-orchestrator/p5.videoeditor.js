@@ -37,9 +37,6 @@ class VideoClip extends ClipBase {
     // Determine if the clip should be considered active based on its time.
     const isActive = relativeTime >= 0 && relativeTime < this.duration;
 
-    // Sync video time with the local clip time
-    this.videoElement.currentTime = relativeTime / 1000;
-
     // Play or pause the video based on the active state
     if (isActive && !this.isPlaying) {
       // Using a flag `isPlaying` prevents calling play() on every frame.

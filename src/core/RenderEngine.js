@@ -22,50 +22,52 @@ class RenderEngine {
     this.effectBuffer = p.createGraphics(this.width, this.height, p.WEBGL);
 
     this.shaders = {}; // Cache for compiled shaders
+    this.shaderPromises = {}; // Cache for shader loading promises
     this.postProcessingEffects = []; // Queue of effects for the current frame
   }
 
   /**
-   * Preloads a shader file.
+   * Loads a shader and caches the loading promise.
    * @param {string} key - A unique key to identify the shader.
    * @param {string} fragUrl - The URL to the fragment shader file.
    */
-  async loadShader(key, fragUrl) {
-    if (this.shaders[key]) return;
-    // p5.js's loadShader needs both a vert and a frag shader.
-    // We can use a generic pass-through vertex shader for post-processing.
+  loadShader(key, fragUrl) {
+    if (this.shaders[key] || this.shaderPromises[key]) {
+      return;
+    }
+    // p5.js's loadShader is asynchronous. We store the promise.
     const vertUrl = 'src/shaders/passthrough.vert'; // Assuming a generic vertex shader
-    this.shaders[key] = this.p.loadShader(vertUrl, fragUrl);
-    console.log(`Shader "${key}" loaded.`);
+    const promise = this.p.loadShader(vertUrl, fragUrl, (shader) => {
+      this.shaders[key] = shader;
+      delete this.shaderPromises[key]; // Remove promise once resolved
+      console.log(`Shader "${key}" loaded.`);
+    });
+    this.shaderPromises[key] = promise;
   }
 
   /**
    * The main rendering entry point. It orchestrates the multi-pass rendering process.
-   * @param {ClipBase[]} clipsToProcess - The list of clips that need to be rendered.
-   * @param {TransitionBase[]} transitions - The list of all transitions.
+   * This method is now async to await shader loading.
+   * @param {Set<ClipBase>} clipsToRender - A Set of all clips that should be rendered this frame.
+   * @param {TransitionBase[]} activeTransitions - A list of transitions currently active.
    * @param {number} time - The current time of the timeline.
    */
-  render(clipsToProcess, transitions, time) {
+  async render(clipsToRender, activeTransitions, time) {
     // Pass 1: Render the entire scene (clips and transitions) to the scene buffer.
     this.sceneBuffer.clear();
     this.sceneBuffer.push();
 
-    // --- Start of logic moved from old Timeline.render() ---
-    const standaloneClips = new Set(clipsToProcess);
-    const activeTransitions = [];
-
-    // Identify active transitions and separate their clips from the main render list
-    for (const transition of transitions) {
-      if (time >= transition.start && time < (transition.start + transition.duration)) {
-        activeTransitions.push(transition);
-        standaloneClips.delete(transition.fromClip);
-        standaloneClips.delete(transition.toClip);
-      }
+    const clipsInTransition = new Set();
+    for (const transition of activeTransitions) {
+      clipsInTransition.add(transition.fromClip);
+      clipsInTransition.add(transition.toClip);
     }
 
-    // Render all clips that are not part of an active transition, sorted by layer.
-    const sortedClips = Array.from(standaloneClips).sort((a, b) => a.layer - b.layer);
-    for (const clip of sortedClips) {
+    const standaloneClips = [...clipsToRender].filter(clip => !clipsInTransition.has(clip));
+    standaloneClips.sort((a, b) => a.layer - b.layer);
+
+    // Render all clips that are not part of an active transition.
+    for (const clip of standaloneClips) {
       const relativeTime = time - clip.start;
       // Apply effects and render to the scene buffer
       for (const effect of clip.effects) {
@@ -80,7 +82,6 @@ class RenderEngine {
     for (const transition of activeTransitions) {
       transition.render(this.sceneBuffer, time);
     }
-    // --- End of logic moved ---
 
     this.sceneBuffer.pop();
 
@@ -91,12 +92,22 @@ class RenderEngine {
 
     if (this.postProcessingEffects.length > 0) {
         for (const effect of this.postProcessingEffects) {
+            // Ensure the shader is loaded before trying to use it.
+            if (this.shaderPromises[effect.type]) {
+                await this.shaderPromises[effect.type];
+            }
+
             const shader = this.shaders[effect.type];
             if (shader) {
                 this.effectBuffer.shader(shader);
                 shader.setUniform('u_texture', sourceBuffer);
-                shader.setUniform('u_brightness', effect.brightness || 0.0);
-                shader.setUniform('u_contrast', effect.contrast || 0.0);
+
+                // Apply all uniforms defined on the effect object
+                if (effect.uniforms) {
+                    for (const [key, value] of Object.entries(effect.uniforms)) {
+                        shader.setUniform(key, value);
+                    }
+                }
 
                 // Draw a full-screen quad to apply the shader to the entire buffer
                 this.effectBuffer.rect(-this.width / 2, -this.height / 2, this.width, this.height);

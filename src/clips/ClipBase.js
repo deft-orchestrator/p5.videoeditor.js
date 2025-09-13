@@ -1,7 +1,6 @@
 import Keyframe from '../core/Keyframe.js';
 import Easing from '../utils/Easing.js';
 import ErrorHandler from '../utils/ErrorHandler.js';
-import { FadeInEffect, FadeOutEffect } from '../effects/StaticEffects.js';
 
 /**
  * @class ClipBase
@@ -74,30 +73,20 @@ class ClipBase {
    */
   addEffect(options = {}) {
     const { type } = options;
-    let effect;
 
-    // The 'fadeIn' and 'fadeOut' effects are currently built-in.
-    // This could be refactored to use the plugin system as well in the future.
-    if (type === 'fadeIn') {
-      effect = new FadeInEffect(options);
-    } else if (type === 'fadeOut') {
-      effect = new FadeOutEffect(options);
-    } else {
-      // For all other effects, use the dynamic registration system.
-      if (!this.timeline) {
-        ErrorHandler.error('Cannot add a plugin-based effect to a clip that is not on a timeline.');
-        return this;
-      }
-      const EffectClass = this.timeline.effectTypes.get(type);
-      if (EffectClass) {
-        effect = new EffectClass(options);
-      } else {
-        console.warn(`Effect with type "${type}" not found.`);
-        return this; // Return for chaining
-      }
+    if (!this.timeline) {
+      ErrorHandler.error('Cannot add an effect to a clip that is not on a timeline.');
+      return this;
     }
 
-    this.effects.push(effect);
+    const EffectClass = this.timeline.effectTypes.get(type);
+    if (EffectClass) {
+      const effect = new EffectClass(options);
+      this.effects.push(effect);
+    } else {
+      ErrorHandler.warn(`Effect with type "${type}" not found.`);
+    }
+
     return this; // Allow chaining
   }
 
@@ -175,7 +164,16 @@ class ClipBase {
     const easingFunction = Easing[prevKeyframe.easing] || Easing.linear;
     const easedT = easingFunction(t);
 
-    return p.lerp(prevKeyframe.value, nextKeyframe.value, easedT);
+    const from = prevKeyframe.value;
+    const to = nextKeyframe.value;
+
+    // Check if the values are p5.Color objects for color interpolation
+    if (p.Color && from instanceof p.Color && to instanceof p.Color) {
+      return p.lerpColor(from, to, easedT);
+    }
+
+    // Default to linear interpolation for numbers
+    return p.lerp(from, to, easedT);
   }
 
   /**

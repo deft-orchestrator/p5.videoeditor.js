@@ -1,8 +1,12 @@
 # p5.videoeditor.js - Motion Timeline Library for p5.js
 
-## 🚧 Current Status
+> **⚠️ Peringatan Proyek dalam Pengembangan Aktif ⚠️**
+>
+> Dokumen ini menjelaskan **visi jangka panjang** untuk pustaka ini. Banyak fitur yang tercantum di sini (seperti editor visual, efek GPU, dll.) **belum diimplementasikan**.
+>
+> Untuk fungsionalitas yang tersedia saat ini, silakan merujuk ke direktori `/examples` dan dokumentasi kode sumber. Kontribusi untuk membantu mewujudkan visi ini sangat kami harapkan!
 
-This project is currently in active development. The documentation below describes the long-term vision and target architecture of the library. While some features are already implemented, many are still in progress. We welcome contributors to help us realize this vision.
+---
 
 ## 🎯 **Project Vision**
 
