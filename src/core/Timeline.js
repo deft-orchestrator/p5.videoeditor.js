@@ -1,4 +1,3 @@
-import CrossFadeTransition from '../transitions/CrossFadeTransition.js';
 import { PluginManager } from './PluginManager.js';
 import RenderEngine from './RenderEngine.js';
 
@@ -31,6 +30,7 @@ class Timeline {
 
     this.renderEngine = new RenderEngine(p, canvas);
     this.pluginManager = new PluginManager();
+    this.transitionTypes = new Map();
     this._pluginsLoaded = false;
   }
 
@@ -67,17 +67,24 @@ class Timeline {
    * @param {string} options.type - The type of transition (e.g., 'crossfade').
    * @returns {TransitionBase} The created transition instance.
    */
+  /**
+   * Registers a new transition type with the timeline.
+   * This is typically called by a transition plugin's onLoad method.
+   * @param {string} name - The name of the transition (e.g., 'crossfade').
+   * @param {TransitionBase} transitionClass - The class constructor for the transition.
+   */
+  registerTransitionType(name, transitionClass) {
+    this.transitionTypes.set(name, transitionClass);
+  }
+
   addTransition(options) {
-    let transition;
-    switch (options.type) {
-      case 'crossfade':
-        transition = new CrossFadeTransition(options);
-        break;
-      default:
-        // In a real application, you might use ErrorHandler here.
-        console.error(`Unknown transition type: ${options.type}`);
-        return null;
+    const TransitionClass = this.transitionTypes.get(options.type);
+    if (!TransitionClass) {
+      // In a real application, you might use ErrorHandler here.
+      console.error(`Unknown transition type: ${options.type}`);
+      return null;
     }
+    const transition = new TransitionClass(options);
     this.transitions.push(transition);
     return transition;
   }
