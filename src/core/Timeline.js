@@ -1,4 +1,4 @@
-import CrossFadeTransition from '../transitions/CrossFadeTransition.js';
+import { PluginManager } from './PluginManager.js';
 import RenderEngine from './RenderEngine.js';
 
 /**
@@ -29,6 +29,19 @@ class Timeline {
     this.needsClipSorting = false;
 
     this.renderEngine = new RenderEngine(p, canvas);
+    this.pluginManager = new PluginManager();
+    this.transitionTypes = new Map();
+    this.effectTypes = new Map();
+    this._pluginsLoaded = false;
+  }
+
+  /**
+   * Registers a plugin with the timeline.
+   * This is a wrapper around the PluginManager's register method.
+   * @param {object} plugin - The plugin to register.
+   */
+  use(plugin) {
+    this.pluginManager.register(plugin);
   }
 
   /**
@@ -55,17 +68,34 @@ class Timeline {
    * @param {string} options.type - The type of transition (e.g., 'crossfade').
    * @returns {TransitionBase} The created transition instance.
    */
+  /**
+   * Registers a new transition type with the timeline.
+   * This is typically called by a transition plugin's onLoad method.
+   * @param {string} name - The name of the transition (e.g., 'crossfade').
+   * @param {TransitionBase} transitionClass - The class constructor for the transition.
+   */
+  registerTransitionType(name, transitionClass) {
+    this.transitionTypes.set(name, transitionClass);
+  }
+
+  /**
+   * Registers a new effect type with the timeline.
+   * This is typically called by an effect plugin's onLoad method.
+   * @param {string} name - The name of the effect (e.g., 'wiggle').
+   * @param {EffectBase} effectClass - The class constructor for the effect.
+   */
+  registerEffectType(name, effectClass) {
+    this.effectTypes.set(name, effectClass);
+  }
+
   addTransition(options) {
-    let transition;
-    switch (options.type) {
-      case 'crossfade':
-        transition = new CrossFadeTransition(options);
-        break;
-      default:
-        // In a real application, you might use ErrorHandler here.
-        console.error(`Unknown transition type: ${options.type}`);
-        return null;
+    const TransitionClass = this.transitionTypes.get(options.type);
+    if (!TransitionClass) {
+      // In a real application, you might use ErrorHandler here.
+      console.error(`Unknown transition type: ${options.type}`);
+      return null;
     }
+    const transition = new TransitionClass(options);
     this.transitions.push(transition);
     return transition;
   }
@@ -115,6 +145,11 @@ class Timeline {
    * @param {p5} p - The p5.js instance.
    */
   update(p) {
+    if (!this._pluginsLoaded) {
+      this._loadPlugins();
+      this._pluginsLoaded = true;
+    }
+
     if (this.isPlaying) {
       this.time += p.deltaTime;
       if (this.time > this.duration) {
@@ -171,6 +206,22 @@ class Timeline {
   seek(time) {
     if (time >= 0 && time <= this.duration) {
       this.time = time;
+    }
+  }
+
+  /**
+   * @private
+   * Loads all registered plugins by calling their onLoad methods.
+   * This is called automatically before the first update cycle.
+   */
+  _loadPlugins() {
+    for (const plugin of this.pluginManager.plugins) {
+      try {
+        plugin.onLoad(this);
+      } catch (error) {
+        // In a real application, you might use ErrorHandler here.
+        console.error(`Error loading plugin: ${plugin.name}`, error);
+      }
     }
   }
 }

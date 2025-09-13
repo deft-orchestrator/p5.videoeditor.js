@@ -1,4 +1,5 @@
 import { VideoEditor, TextClip } from '../src/p5.videoeditor.js';
+import { WiggleEffectPlugin } from '../src/plugins/WiggleEffectPlugin.js';
 
 const sketch = (p) => {
   let editor;
@@ -14,6 +15,9 @@ const sketch = (p) => {
       canvas: canvas.elt,
       uiContainer: uiContainer,
     });
+
+    // Register the custom effect plugin
+    editor.timeline.use(WiggleEffectPlugin);
 
     // Create a text clip
     const textClip = new TextClip("CPU Effects!", {

@@ -1,4 +1,5 @@
 import { VideoEditor, VideoClip } from '../src/p5.videoeditor.js';
+import { CrossFadeTransitionPlugin } from '../src/plugins/CrossFadeTransitionPlugin.js';
 
 const sketch = (p) => {
   let editor;
@@ -19,6 +20,9 @@ const sketch = (p) => {
       canvas: canvas.elt,
       uiContainer: uiContainer,
     });
+
+    // Register the plugin with the timeline
+    editor.timeline.use(CrossFadeTransitionPlugin);
 
     // First video clip
     const clip1 = new VideoClip(videoSrc1, {

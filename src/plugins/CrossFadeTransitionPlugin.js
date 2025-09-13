@@ -1,4 +1,4 @@
-import TransitionBase from './TransitionBase.js';
+import TransitionBase from '../transitions/TransitionBase.js';
 
 /**
  * @class CrossFadeTransition
@@ -54,4 +54,16 @@ class CrossFadeTransition extends TransitionBase {
   }
 }
 
-export default CrossFadeTransition;
+/**
+ * @type {object}
+ * @name CrossFadeTransitionPlugin
+ * @description The plugin object for the CrossFadeTransition.
+ * This object is what users will register with the timeline.
+ */
+export const CrossFadeTransitionPlugin = {
+  name: 'CrossFadeTransition',
+  type: 'transition',
+  onLoad: (timeline) => {
+    timeline.registerTransitionType('crossfade', CrossFadeTransition);
+  }
+};

@@ -1,4 +1,4 @@
-import EffectBase from './EffectBase.js';
+import EffectBase from '../effects/EffectBase.js';
 
 /**
  * @class WiggleEffect
@@ -47,4 +47,16 @@ class WiggleEffect extends EffectBase {
   }
 }
 
-export default WiggleEffect;
+/**
+ * @type {object}
+ * @name WiggleEffectPlugin
+ * @description The plugin object for the WiggleEffect.
+ * This object is what users will register with the timeline.
+ */
+export const WiggleEffectPlugin = {
+  name: 'WiggleEffect',
+  type: 'effect',
+  onLoad: (timeline) => {
+    timeline.registerEffectType('wiggle', WiggleEffect);
+  }
+};

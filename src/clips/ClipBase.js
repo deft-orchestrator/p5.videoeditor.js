@@ -2,8 +2,6 @@ import Keyframe from '../core/Keyframe.js';
 import Easing from '../utils/Easing.js';
 import ErrorHandler from '../utils/ErrorHandler.js';
 import { FadeInEffect, FadeOutEffect } from '../effects/StaticEffects.js';
-import WiggleEffect from '../effects/WiggleEffect.js';
-import BrightnessContrastEffect from '../effects/BrightnessContrastEffect.js';
 
 /**
  * @class ClipBase
@@ -78,22 +76,25 @@ class ClipBase {
     const { type } = options;
     let effect;
 
-    switch (type) {
-      case 'fadeIn':
-        effect = new FadeInEffect(options);
-        break;
-      case 'fadeOut':
-        effect = new FadeOutEffect(options);
-        break;
-      case 'wiggle':
-        effect = new WiggleEffect(options);
-        break;
-      case 'brightnessContrast':
-        effect = new BrightnessContrastEffect(options);
-        break;
-      default:
+    // The 'fadeIn' and 'fadeOut' effects are currently built-in.
+    // This could be refactored to use the plugin system as well in the future.
+    if (type === 'fadeIn') {
+      effect = new FadeInEffect(options);
+    } else if (type === 'fadeOut') {
+      effect = new FadeOutEffect(options);
+    } else {
+      // For all other effects, use the dynamic registration system.
+      if (!this.timeline) {
+        ErrorHandler.error('Cannot add a plugin-based effect to a clip that is not on a timeline.');
+        return this;
+      }
+      const EffectClass = this.timeline.effectTypes.get(type);
+      if (EffectClass) {
+        effect = new EffectClass(options);
+      } else {
         console.warn(`Effect with type "${type}" not found.`);
-        return this; // Return for chaining even if effect is not found
+        return this; // Return for chaining
+      }
     }
 
     this.effects.push(effect);
