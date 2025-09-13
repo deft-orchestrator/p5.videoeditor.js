@@ -31,6 +31,7 @@ class Timeline {
     this.renderEngine = new RenderEngine(p, canvas);
     this.pluginManager = new PluginManager();
     this.transitionTypes = new Map();
+    this.effectTypes = new Map();
     this._pluginsLoaded = false;
   }
 
@@ -75,6 +76,16 @@ class Timeline {
    */
   registerTransitionType(name, transitionClass) {
     this.transitionTypes.set(name, transitionClass);
+  }
+
+  /**
+   * Registers a new effect type with the timeline.
+   * This is typically called by an effect plugin's onLoad method.
+   * @param {string} name - The name of the effect (e.g., 'wiggle').
+   * @param {EffectBase} effectClass - The class constructor for the effect.
+   */
+  registerEffectType(name, effectClass) {
+    this.effectTypes.set(name, effectClass);
   }
 
   addTransition(options) {
