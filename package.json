@@ -5,7 +5,9 @@
   "type": "module",
   "main": "src/p5.videoeditor.js",
   "scripts": {
-    "test": "node --experimental-vm-modules node_modules/jest/bin/jest.js"
+    "start": "python -m http.server 8080",
+    "test": "node --experimental-vm-modules node_modules/jest/bin/jest.js",
+    "lint": "echo \"Linter not yet configured. TODO: Set up ESLint.\""
   },
   "repository": {
     "type": "git",

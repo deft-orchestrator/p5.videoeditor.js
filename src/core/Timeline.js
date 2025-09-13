@@ -1,3 +1,6 @@
+import CrossFadeTransition from '../transitions/CrossFadeTransition.js';
+import RenderEngine from './RenderEngine.js';
+
 /**
  * @class Timeline
  * @description Manages the collection of clips, their timing, and the overall playback state.
@@ -7,20 +10,25 @@ class Timeline {
   /**
    * @constructor
    * @param {object} [options={}] - Configuration options for the timeline.
+   * @param {p5} p - The p5 instance.
+   * @param {HTMLCanvasElement} canvas - The canvas element.
    * @param {number} [options.frameRate=60] - The target frame rate for the animation.
    * @param {number} [options.duration=10000] - The total duration of the timeline in milliseconds.
    */
-  constructor({ frameRate = 60, duration = 10000 } = {}) {
+  constructor(p, canvas, { frameRate = 60, duration = 10000 } = {}) {
     this.frameRate = frameRate;
     this.duration = duration;
     this.clips = [];
+    this.transitions = [];
     this.time = 0;
     this.isPlaying = false;
-    this._activeClips = [];
+    this._clipsToProcessThisFrame = [];
 
     this.isBatching = false;
     this.dirtyClips = new Set();
     this.needsClipSorting = false;
+
+    this.renderEngine = new RenderEngine(p, canvas);
   }
 
   /**
@@ -36,6 +44,30 @@ class Timeline {
     } else {
       this.clips.sort((a, b) => a.layer - b.layer);
     }
+  }
+
+  /**
+   * Creates and adds a transition between two clips.
+   * @param {object} options - The configuration for the transition.
+   * @param {ClipBase} options.fromClip - The clip to transition from.
+   * @param {ClipBase} options.toClip - The clip to transition to.
+   * @param {number} options.duration - The duration of the transition in milliseconds.
+   * @param {string} options.type - The type of transition (e.g., 'crossfade').
+   * @returns {TransitionBase} The created transition instance.
+   */
+  addTransition(options) {
+    let transition;
+    switch (options.type) {
+      case 'crossfade':
+        transition = new CrossFadeTransition(options);
+        break;
+      default:
+        // In a real application, you might use ErrorHandler here.
+        console.error(`Unknown transition type: ${options.type}`);
+        return null;
+    }
+    this.transitions.push(transition);
+    return transition;
   }
 
   /**
@@ -78,7 +110,8 @@ class Timeline {
   }
 
   /**
-   * The main update loop for the timeline. It advances the time and updates all active clips.
+   * The main update loop for the timeline. It advances the time and updates all relevant clips.
+   * This includes clips that are currently active and any clips involved in an active transition.
    * @param {p5} p - The p5.js instance.
    */
   update(p) {
@@ -89,23 +122,32 @@ class Timeline {
       }
     }
 
-    this._activeClips = this.getActiveClips();
+    const clipsToUpdate = new Set(this.getActiveClips());
 
-    this._activeClips.forEach(clip => {
+    // Add clips from active transitions to ensure they are updated,
+    // even if they are no longer technically "active".
+    for (const transition of this.transitions) {
+      if (this.time >= transition.start && this.time < (transition.start + transition.duration)) {
+        clipsToUpdate.add(transition.fromClip);
+        clipsToUpdate.add(transition.toClip);
+      }
+    }
+
+    this._clipsToProcessThisFrame = Array.from(clipsToUpdate);
+
+    // Call update on every clip that needs processing for this frame.
+    for (const clip of this._clipsToProcessThisFrame) {
       const relativeTime = this.time - clip.start;
       clip.update(p, relativeTime);
-    });
+    }
   }
 
   /**
-   * Renders all active clips to the canvas.
-   * @param {p5} p - The p5.js instance.
+   * Renders the current state of the timeline by delegating to the RenderEngine.
+   * @param {p5} p - The p5.js instance (passed for consistency, but RenderEngine already has it).
    */
   render(p) {
-    this._activeClips.forEach(clip => {
-      const relativeTime = this.time - clip.start;
-      clip.render(p, relativeTime);
-    });
+    this.renderEngine.render(this._clipsToProcessThisFrame, this.transitions, this.time);
   }
 
   /**

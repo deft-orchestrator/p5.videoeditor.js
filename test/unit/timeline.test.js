@@ -1,17 +1,20 @@
-import { describe, beforeEach, test, expect } from '@jest/globals';
+import { describe, beforeEach, test, expect, jest } from '@jest/globals';
 import Timeline from '../../src/core/Timeline.js';
 import ClipBase from '../../src/clips/ClipBase.js';
 
 describe('Timeline', () => {
   let timeline;
   let mockP5;
+  let mockCanvas;
 
   beforeEach(() => {
-    timeline = new Timeline({ duration: 5000 });
     mockP5 = {
       deltaTime: 16, // approx 60fps
       lerp: (start, end, t) => start * (1 - t) + end * t,
+      createGraphics: jest.fn(() => ({})), // Mock createGraphics
     };
+    mockCanvas = { width: 100, height: 100, toDataURL: () => '' }; // Mock canvas
+    timeline = new Timeline(mockP5, mockCanvas, { duration: 5000 });
   });
 
   test('should be instantiated correctly', () => {
@@ -69,9 +72,13 @@ describe('Timeline', () => {
 describe('Timeline Batch Operations', () => {
   let timeline;
   let clip;
+  let mockP5;
+  let mockCanvas;
 
   beforeEach(() => {
-    timeline = new Timeline();
+    mockP5 = { deltaTime: 16, createGraphics: jest.fn(() => ({})) };
+    mockCanvas = { width: 100, height: 100, toDataURL: () => '' };
+    timeline = new Timeline(mockP5, mockCanvas);
     clip = new ClipBase({ properties: { x: 0 } });
     timeline.addClip(clip);
   });
