@@ -1,8 +1,14 @@
+/**
+ * @class EffectBase
+ * @description The abstract base class for all visual effects.
+ * It defines the standard interface that all effects must implement.
+ */
 class EffectBase {
   /**
-   * @param {object} options - Effect options.
-   * @param {number} [options.start=0] - The start time of the effect, relative to the clip's start.
-   * @param {number} [options.duration=1000] - The duration of the effect.
+   * @constructor
+   * @param {object} [options={}] - Configuration options for the effect.
+   * @param {number} [options.start=0] - The start time of the effect, relative to the clip's start, in milliseconds.
+   * @param {number} [options.duration=1000] - The duration of the effect in milliseconds.
    */
   constructor({ start = 0, duration = 1000 } = {}) {
     this.start = start;
@@ -10,13 +16,14 @@ class EffectBase {
   }
 
   /**
-   * Apply the effect to a clip. This method is meant to be overridden by subclasses.
-   * @param {ClipBase} clip - The clip instance to apply the effect to.
-   * @param {p5} p - The p5 instance.
-   * @param {number} relativeTime - The current time relative to the clip's start.
+   * Abstract method to apply the effect.
+   * This method must be implemented by any class that extends EffectBase.
+   * @param {ClipBase} clip - The clip to which the effect is being applied.
+   * @param {p5} p - The p5.js instance.
+   * @param {number} relativeTime - The current time within the clip's duration, in milliseconds.
    */
   apply(clip, p, relativeTime) {
-    // Subclasses will implement the actual effect logic here.
+    throw new Error('The "apply()" method must be implemented by a subclass.');
   }
 }
 

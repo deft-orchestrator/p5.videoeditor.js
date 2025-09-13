@@ -1,6 +1,9 @@
 import Keyframe from '../core/Keyframe.js';
 import Easing from '../utils/Easing.js';
 import ErrorHandler from '../utils/ErrorHandler.js';
+import { FadeInEffect, FadeOutEffect } from '../effects/StaticEffects.js';
+import WiggleEffect from '../effects/WiggleEffect.js';
+import BrightnessContrastEffect from '../effects/BrightnessContrastEffect.js';
 
 /**
  * @class ClipBase
@@ -66,11 +69,35 @@ class ClipBase {
   }
 
   /**
-   * Adds an effect to the clip.
-   * @param {EffectBase} effect - An instance of a class that extends EffectBase.
+   * Adds an effect to the clip using a factory pattern based on the effect type.
+   * @param {object} options - The configuration for the effect.
+   * @param {string} options.type - The type of effect to add (e.g., 'fadeIn', 'wiggle').
+   * @returns {ClipBase} The current clip instance for chaining.
    */
-  addEffect(effect) {
+  addEffect(options = {}) {
+    const { type } = options;
+    let effect;
+
+    switch (type) {
+      case 'fadeIn':
+        effect = new FadeInEffect(options);
+        break;
+      case 'fadeOut':
+        effect = new FadeOutEffect(options);
+        break;
+      case 'wiggle':
+        effect = new WiggleEffect(options);
+        break;
+      case 'brightnessContrast':
+        effect = new BrightnessContrastEffect(options);
+        break;
+      default:
+        console.warn(`Effect with type "${type}" not found.`);
+        return this; // Return for chaining even if effect is not found
+    }
+
     this.effects.push(effect);
+    return this; // Allow chaining
   }
 
   /**
@@ -100,9 +127,7 @@ class ClipBase {
       }
     }
 
-    this.effects.forEach(effect => {
-      effect.apply(this, p, relativeTime);
-    });
+    // The responsibility of applying effects has been moved to the RenderEngine.
   }
 
   /**

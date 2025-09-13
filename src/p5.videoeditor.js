@@ -9,6 +9,7 @@ import ShapeClip from './clips/ShapeClip.js';
 import ImageClip from './clips/ImageClip.js';
 import AudioClip from './clips/AudioClip.js';
 import { FadeInEffect, FadeOutEffect } from './effects/StaticEffects.js';
+import WiggleEffect from './effects/WiggleEffect.js';
 import EffectBase from './effects/EffectBase.js';
 
 /**
@@ -40,11 +41,17 @@ class VideoEditor {
   /**
    * @constructor
    * @param {object} [options={}] - Configuration options for the editor.
+   * @param {p5} p - The p5.js instance. Required for rendering.
    * @param {object} [options.performance] - Performance-related settings passed to the PerformanceManager.
+   * @param {HTMLCanvasElement} [options.canvas=null] - The p5.js canvas element. Required for exporting.
+   * @param {HTMLElement} [options.uiContainer=null] - The container to append the UI controls to.
    */
-  constructor(options = {}) {
-    this.timeline = new Timeline(options);
-    this.playbackController = new PlaybackController(this.timeline);
+  constructor(p, { canvas = null, uiContainer = null, ...options } = {}) {
+    if (!p) {
+      throw new Error('A p5.js instance must be provided to the VideoEditor constructor.');
+    }
+    this.timeline = new Timeline(p, canvas, options);
+    this.playbackController = new PlaybackController(this.timeline, canvas, uiContainer);
     this.performanceManager = new PerformanceManager(options.performance);
     this.memoryManager = new MemoryManager();
 
@@ -161,4 +168,5 @@ export {
   EffectBase,
   FadeInEffect,
   FadeOutEffect,
+  WiggleEffect,
 };

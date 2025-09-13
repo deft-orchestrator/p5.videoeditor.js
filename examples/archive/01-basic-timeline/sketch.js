@@ -11,11 +11,18 @@ let editor;
 
 const sketch = (p) => {
   p.setup = () => {
-    p.createCanvas(400, 400);
+    const canvas = p.createCanvas(400, 400);
     p.textFont('sans-serif');
 
+    // Find the container for the UI controls
+    const uiContainer = document.querySelector('#controls');
+
     // 1. Create the main editor instance
-    editor = new VideoEditor({ duration: 3000 }); // 3-second timeline
+    editor = new VideoEditor(p, {
+      duration: 3000, // 3-second timeline
+      canvas: canvas.elt, // Pass the canvas element for exporting
+      uiContainer: uiContainer, // Pass the container for the UI
+    });
 
     // 2. Create clips and add them to the editor
 
@@ -47,11 +54,9 @@ const sketch = (p) => {
       fontSize: 32,
       fill: '#f1faee',
     });
-    // Add effects for fade in and fade out
-    // Fade in for the first 500ms of the clip's duration
-    textClip.addEffect(new FadeInEffect({ duration: 500 }));
-    // Fade out for the last 500ms of the clip's duration
-    textClip.addEffect(new FadeOutEffect({ start: 1500, duration: 500 }));
+    // Add effects for fade in and fade out using the new factory method
+    textClip.addEffect({ type: 'fadeIn', duration: 500 });
+    textClip.addEffect({ type: 'fadeOut', start: 1500, duration: 500 });
     editor.addClip(textClip);
 
     // 3. Start playback
