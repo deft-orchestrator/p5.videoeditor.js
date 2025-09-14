@@ -1,138 +1,141 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
-<head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>p5.videoeditor.js - Showcase</title>
-  <style>
-    body {
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-      margin: 0;
-      padding: 0;
-      background-color: #1b1b1b;
-      color: #eee;
-      display: flex;
-    }
-    nav {
-      width: 250px;
-      height: 100vh;
-      overflow-y: auto;
-      border-right: 1px solid #444;
-      padding: 10px;
-      background-color: #282828;
-    }
-    nav h2 {
-      margin-top: 0;
-      font-size: 1.2em;
-    }
-    nav ul {
-      list-style: none;
-      padding: 0;
-      margin: 0;
-    }
-    nav li {
-      padding: 8px 12px;
-      cursor: pointer;
-      border-radius: 4px;
-      margin-bottom: 5px;
-    }
-    nav li:hover {
-      background-color: #4a4a4a;
-    }
-    nav li.active {
-      background-color: #007bff;
-      color: white;
-    }
-    #content {
-      flex-grow: 1;
-      display: flex;
-      flex-direction: column;
-      height: 100vh;
-    }
-    main {
-      flex-grow: 1;
-      display: flex;
-      justify-content: center;
-      align-items: center;
-    }
-    #controls {
-      background-color: #333;
-      border-top: 1px solid #444;
-    }
-  </style>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.9.0/p5.min.js"></script>
-</head>
-<body>
-
-  <nav>
-    <h2>Showcase Examples</h2>
-    <ul id="example-list">
-      <li data-src="./01-dasar-klip.js" class="active">Dasar-Dasar Klip</li>
-      <li data-src="./02-animasi-keyframe.js">Animasi Keyframe</li>
-      <li data-src="./03-multi-klip-layer.js">Multi-Klip & Layer</li>
-      <li data-src="./04-efek-cpu.js">Efek Berbasis CPU</li>
-      <li data-src="./05-klip-video-transisi.js">Klip Video & Transisi</li>
-      <li data-src="./06-efek-gpu-shader.js">Efek Berbasis GPU (Shader)</li>
-      <li data-src="./07-ekspor-video.js">Ekspor ke Video</li>
-    </ul>
-  </nav>
-
-  <div id="content">
-    <main id="canvas-container"></main>
-    <div id="controls"></div>
-  </div>
-
-  <script>
-    const exampleList = document.getElementById('example-list');
-    const sketchContainer = document.getElementById('canvas-container');
-
-    let currentSketchInstance = null;
-    let currentScriptTag = null;
-
-    function loadSketch(scriptSrc) {
-      // 1. Clean up the previous sketch
-      if (currentSketchInstance) {
-        currentSketchInstance.remove();
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>p5.videoeditor.js - Showcase</title>
+    <style>
+      body {
+        font-family:
+          -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica,
+          Arial, sans-serif;
+        margin: 0;
+        padding: 0;
+        background-color: #1b1b1b;
+        color: #eee;
+        display: flex;
       }
-      if (currentScriptTag) {
-        currentScriptTag.remove();
+      nav {
+        width: 250px;
+        height: 100vh;
+        overflow-y: auto;
+        border-right: 1px solid #444;
+        padding: 10px;
+        background-color: #282828;
       }
-      // Clear out any leftover UI controls or canvas
-      sketchContainer.innerHTML = '';
-      document.getElementById('controls').innerHTML = '';
+      nav h2 {
+        margin-top: 0;
+        font-size: 1.2em;
+      }
+      nav ul {
+        list-style: none;
+        padding: 0;
+        margin: 0;
+      }
+      nav li {
+        padding: 8px 12px;
+        cursor: pointer;
+        border-radius: 4px;
+        margin-bottom: 5px;
+      }
+      nav li:hover {
+        background-color: #4a4a4a;
+      }
+      nav li.active {
+        background-color: #007bff;
+        color: white;
+      }
+      #content {
+        flex-grow: 1;
+        display: flex;
+        flex-direction: column;
+        height: 100vh;
+      }
+      main {
+        flex-grow: 1;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+      }
+      #controls {
+        background-color: #333;
+        border-top: 1px solid #444;
+      }
+    </style>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.9.0/p5.min.js"></script>
+  </head>
+  <body>
+    <nav>
+      <h2>Showcase Examples</h2>
+      <ul id="example-list">
+        <li data-src="./01-dasar-klip.js" class="active">Dasar-Dasar Klip</li>
+        <li data-src="./02-animasi-keyframe.js">Animasi Keyframe</li>
+        <li data-src="./03-multi-klip-layer.js">Multi-Klip & Layer</li>
+        <li data-src="./04-efek-cpu.js">Efek Berbasis CPU</li>
+        <li data-src="./05-klip-video-transisi.js">Klip Video & Transisi</li>
+        <li data-src="./06-efek-gpu-shader.js">Efek Berbasis GPU (Shader)</li>
+        <li data-src="./07-ekspor-video.js">Ekspor ke Video</li>
+      </ul>
+    </nav>
 
+    <div id="content">
+      <main id="canvas-container"></main>
+      <div id="controls"></div>
+    </div>
 
-      // 2. Create a new script tag
-      currentScriptTag = document.createElement('script');
-      currentScriptTag.type = 'module';
-      currentScriptTag.src = scriptSrc;
+    <script>
+      const exampleList = document.getElementById('example-list');
+      const sketchContainer = document.getElementById('canvas-container');
 
-      // 3. Append to the body to load and run the new sketch
-      document.body.appendChild(currentScriptTag);
+      let currentSketchInstance = null;
+      let currentScriptTag = null;
 
-      // We need a way to get the new p5 instance to call remove() on it later.
-      // We can listen for a custom event that the sketch files will dispatch.
-      window.addEventListener('sketch-loaded', (e) => {
-        currentSketchInstance = e.detail.p5;
-      }, { once: true });
-    }
-
-    exampleList.addEventListener('click', (e) => {
-      if (e.target && e.target.nodeName === 'LI') {
-        const scriptSrc = e.target.getAttribute('data-src');
-        if (scriptSrc) {
-          // Update active class
-          exampleList.querySelector('.active').classList.remove('active');
-          e.target.classList.add('active');
-
-          loadSketch(scriptSrc);
+      function loadSketch(scriptSrc) {
+        // 1. Clean up the previous sketch
+        if (currentSketchInstance) {
+          currentSketchInstance.remove();
         }
+        if (currentScriptTag) {
+          currentScriptTag.remove();
+        }
+        // Clear out any leftover UI controls or canvas
+        sketchContainer.innerHTML = '';
+        document.getElementById('controls').innerHTML = '';
+
+        // 2. Create a new script tag
+        currentScriptTag = document.createElement('script');
+        currentScriptTag.type = 'module';
+        currentScriptTag.src = scriptSrc;
+
+        // 3. Append to the body to load and run the new sketch
+        document.body.appendChild(currentScriptTag);
+
+        // We need a way to get the new p5 instance to call remove() on it later.
+        // We can listen for a custom event that the sketch files will dispatch.
+        window.addEventListener(
+          'sketch-loaded',
+          (e) => {
+            currentSketchInstance = e.detail.p5;
+          },
+          { once: true }
+        );
       }
-    });
 
-    // Load the first example by default
-    loadSketch(exampleList.querySelector('.active').getAttribute('data-src'));
-  </script>
+      exampleList.addEventListener('click', (e) => {
+        if (e.target && e.target.nodeName === 'LI') {
+          const scriptSrc = e.target.getAttribute('data-src');
+          if (scriptSrc) {
+            // Update active class
+            exampleList.querySelector('.active').classList.remove('active');
+            e.target.classList.add('active');
 
-</body>
+            loadSketch(scriptSrc);
+          }
+        }
+      });
+
+      // Load the first example by default
+      loadSketch(exampleList.querySelector('.active').getAttribute('data-src'));
+    </script>
+  </body>
 </html>

@@ -38,12 +38,16 @@ class Exporter {
       case 'error':
         if (this.onError) this.onError(new Error(data.data));
         break;
-      case 'done':
+      case 'done': {
         const videoBlob = new Blob([data.data.buffer], { type: 'video/mp4' });
         if (this.onComplete) this.onComplete(videoBlob);
         break;
+      }
       default:
-        console.warn('Exporter received unknown message type from worker:', data.type);
+        console.warn(
+          'Exporter received unknown message type from worker:',
+          data.type
+        );
     }
   }
 

@@ -1,6 +1,7 @@
 import { describe, beforeEach, test, expect, jest } from '@jest/globals';
 import Timeline from '../../src/core/Timeline.js';
 import ClipBase from '../../src/clips/ClipBase.js';
+import ErrorHandler from '../../src/utils/ErrorHandler.js';
 
 describe('Timeline', () => {
   let timeline;
@@ -178,11 +179,92 @@ describe('Timeline Batch Operations', () => {
         expect(timeline.isBatching).toBe(true);
         throw new Error('test error');
       });
-    } catch (e) {
+    } catch {
       // ignore
     }
 
     // The finally block in batch() should have reset the flag
     expect(timeline.isBatching).toBe(false);
+  });
+});
+
+describe('Timeline addTransition', () => {
+  let timeline;
+  let mockP5;
+  let mockCanvas;
+  let warningSpy;
+
+  beforeEach(() => {
+    mockP5 = { createGraphics: jest.fn(() => ({})) };
+    mockCanvas = { width: 100, height: 100 };
+    timeline = new Timeline(mockP5, mockCanvas);
+    // Spy on the warning method and provide a mock implementation
+    warningSpy = jest
+      .spyOn(ErrorHandler, 'warning')
+      .mockImplementation(() => {});
+  });
+
+  afterEach(() => {
+    // Restore the original implementation after each test
+    warningSpy.mockRestore();
+  });
+
+  test('should return null and call ErrorHandler.warning for unknown transition type', () => {
+    const options = { type: 'nonexistent-transition' };
+    const result = timeline.addTransition(options);
+
+    expect(result).toBeNull();
+    expect(ErrorHandler.warning).toHaveBeenCalledTimes(1);
+    expect(ErrorHandler.warning).toHaveBeenCalledWith(
+      'Unknown transition type: nonexistent-transition'
+    );
+    expect(timeline.transitions.length).toBe(0);
+  });
+
+  test('should add a transition successfully if type is registered', () => {
+    // Mock a simple transition class
+    class MockTransition {}
+    timeline.registerTransitionType('fade', MockTransition);
+
+    const options = { type: 'fade' };
+    const result = timeline.addTransition(options);
+
+    expect(result).toBeInstanceOf(MockTransition);
+    expect(ErrorHandler.warning).not.toHaveBeenCalled();
+    expect(timeline.transitions.length).toBe(1);
+    expect(timeline.transitions[0]).toBe(result);
+  });
+});
+
+describe('Timeline Edge Cases', () => {
+  let timeline;
+  let mockP5;
+  let mockCanvas;
+
+  beforeEach(() => {
+    mockP5 = { deltaTime: 16, createGraphics: jest.fn(() => ({})) };
+    mockCanvas = { width: 100, height: 100 };
+    timeline = new Timeline(mockP5, mockCanvas, { duration: 5000 });
+  });
+
+  test('seek should not change time if value is negative', () => {
+    timeline.seek(-100);
+    expect(timeline.time).toBe(0);
+  });
+
+  test('seek should not change time if value is greater than duration', () => {
+    timeline.seek(6000);
+    expect(timeline.time).toBe(0);
+  });
+
+  test('update should not crash with a zero-duration clip', () => {
+    const clip = new ClipBase({ start: 100, duration: 0 });
+    clip.update = jest.fn();
+    timeline.addClip(clip);
+
+    timeline.time = 100;
+    expect(() => timeline.update(mockP5)).not.toThrow();
+    // The clip should not be updated as the active check is `time < start + duration`
+    expect(clip.update).not.toHaveBeenCalled();
   });
 });

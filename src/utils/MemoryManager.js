@@ -59,7 +59,7 @@ class MemoryManager {
    */
   clearAll() {
     this.cache.clear();
-    console.log("Cleared all assets from cache.");
+    console.log('Cleared all assets from cache.');
   }
 
   /**

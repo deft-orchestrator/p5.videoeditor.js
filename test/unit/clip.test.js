@@ -1,6 +1,5 @@
 import { jest } from '@jest/globals';
 import ClipBase from '../../src/clips/ClipBase.js';
-import Easing from '../../src/utils/Easing.js';
 
 describe('ClipBase', () => {
   let clip;
@@ -12,13 +11,17 @@ describe('ClipBase', () => {
       lerp: (start, end, t) => start * (1 - t) + end * t,
     };
     // Initialize ClipBase with some custom initial properties
-    clip = new ClipBase({ properties: { x: 100, y: 50, scale: 1, color: '#ff0000' } });
+    clip = new ClipBase({
+      properties: { x: 100, y: 50, scale: 1, color: '#ff0000' },
+    });
   });
 
   test('should interpolate colors using lerpColor', () => {
     // A simple class mock to make `instanceof` work
     class MockP5Color {
-      constructor(val) { this.value = val; }
+      constructor(val) {
+        this.value = val;
+      }
     }
 
     const red = new MockP5Color('red');
@@ -127,9 +130,9 @@ describe('ClipBase', () => {
     });
 
     test('should return initial property value if no keyframes exist for the property', () => {
-        // 'scale' has no keyframes, so it should return its initial value
-        const value = clip._calculateValue(mockP5, 'scale', 1500);
-        expect(value).toBe(1); // Initial value of scale is 1
+      // 'scale' has no keyframes, so it should return its initial value
+      const value = clip._calculateValue(mockP5, 'scale', 1500);
+      expect(value).toBe(1); // Initial value of scale is 1
     });
   });
 });

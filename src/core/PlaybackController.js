@@ -93,17 +93,18 @@ class PlaybackController {
     const totalDuration = this.timeline.duration;
 
     // Use a short timeout to allow the UI to update before the heavy loop starts.
-    await new Promise(resolve => setTimeout(resolve, 50));
+    await new Promise((resolve) => setTimeout(resolve, 50));
 
     // --- Offline Rendering Loop ---
     for (let time = 0; time <= totalDuration; time += frameDuration) {
       this.timeline.seek(time); // Manually set the time
-      this.timeline.render();   // Manually trigger a render at that time
+      this.timeline.render(); // Manually trigger a render at that time
       this.frameRecorder.captureFrame();
     }
 
     this.frameRecorder.stop();
-    this.exportStatus.textContent = 'Mengenkode video... (ini mungkin perlu waktu)';
+    this.exportStatus.textContent =
+      'Mengenkode video... (ini mungkin perlu waktu)';
 
     // Hand off the captured frames to the exporter
     this.exporter.export(this.frameRecorder.getFrames(), frameRate);

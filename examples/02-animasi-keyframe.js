@@ -26,7 +26,7 @@ const sketch = (p) => {
         fill: '#f94144',
         rotation: 0,
         scale: 1,
-      }
+      },
     });
 
     // Animate position
@@ -48,7 +48,9 @@ const sketch = (p) => {
     editor.addClip(shape);
     editor.play();
 
-    window.dispatchEvent(new CustomEvent('sketch-loaded', { detail: { p5: p } }));
+    window.dispatchEvent(
+      new CustomEvent('sketch-loaded', { detail: { p5: p } })
+    );
   };
 
   p.draw = () => {

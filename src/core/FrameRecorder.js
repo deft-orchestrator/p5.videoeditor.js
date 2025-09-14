@@ -8,7 +8,9 @@ class FrameRecorder {
    */
   constructor(canvas) {
     if (!canvas || typeof canvas.toDataURL !== 'function') {
-      throw new Error('A valid canvas element must be provided to the FrameRecorder.');
+      throw new Error(
+        'A valid canvas element must be provided to the FrameRecorder.'
+      );
     }
     this.canvas = canvas;
     this.frames = [];
@@ -36,7 +38,9 @@ class FrameRecorder {
    * Stops the recording session. Currently a placeholder for future functionality.
    */
   stop() {
-    console.log(`Frame recording stopped. Total frames captured: ${this.frames.length}`);
+    console.log(
+      `Frame recording stopped. Total frames captured: ${this.frames.length}`
+    );
   }
 
   /**

@@ -5,6 +5,7 @@ Selamat datang di panduan pembuatan plugin untuk `p5.videoeditor.js`! Sistem plu
 ## Filosofi Sistem Plugin
 
 Sistem plugin ada untuk menjaga agar kode inti tetap ramping dan stabil sambil memberikan fleksibilitas tanpa batas. Dengan membuat fitur sebagai plugin, kita dapat:
+
 - **Menambahkan fungsionalitas baru** tanpa risiko merusak fitur yang sudah ada.
 - **Berbagi dan menggunakan kembali** fitur di berbagai proyek.
 - **Menjaga kode tetap terorganisir** dan mudah dikelola.
@@ -20,6 +21,7 @@ Setiap plugin adalah objek JavaScript sederhana yang diekspor dari sebuah file. 
 - `onLoad` (Function): Sebuah fungsi yang dipanggil saat editor dimuat. Fungsi ini menerima instance `timeline` sebagai argumen, memungkinkan plugin Anda untuk mendaftarkan dirinya ke sistem.
 
 **Contoh Struktur Plugin:**
+
 ```javascript
 // src/plugins/MyAwesomeEffectPlugin.js
 
@@ -35,7 +37,7 @@ export const MyAwesomeEffectPlugin = {
   onLoad: (timeline) => {
     // 3. Daftarkan fitur Anda ke timeline
     timeline.registerEffectType('awesome', MyAwesomeEffect);
-  }
+  },
 };
 ```
 
@@ -119,9 +121,10 @@ export const GreyscaleEffectPlugin = {
   type: 'effect',
   onLoad: (timeline) => {
     timeline.registerEffectType('greyscale', GreyscaleEffect);
-  }
+  },
 };
 ```
+
 Selesai! Plugin Anda sekarang siap digunakan.
 
 ---
@@ -145,6 +148,7 @@ class TransitionBase {
 ```
 
 Buat kelas transisi kustom Anda:
+
 ```javascript
 // src/plugins/SlideInTransitionPlugin.js
 
@@ -186,7 +190,7 @@ export const SlideInTransitionPlugin = {
   type: 'transition',
   onLoad: (timeline) => {
     timeline.registerTransitionType('slideIn', SlideInTransition);
-  }
+  },
 };
 ```
 

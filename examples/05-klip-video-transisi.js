@@ -33,7 +33,7 @@ const sketch = (p) => {
         height: p.height,
         x: p.width / 2,
         y: p.height / 2,
-      }
+      },
     });
     editor.addClip(clip1);
 
@@ -46,7 +46,7 @@ const sketch = (p) => {
         height: p.height,
         x: p.width / 2,
         y: p.height / 2,
-      }
+      },
     });
     editor.addClip(clip2);
 
@@ -59,7 +59,9 @@ const sketch = (p) => {
     });
 
     editor.play();
-    window.dispatchEvent(new CustomEvent('sketch-loaded', { detail: { p5: p } }));
+    window.dispatchEvent(
+      new CustomEvent('sketch-loaded', { detail: { p5: p } })
+    );
   };
 
   p.draw = () => {

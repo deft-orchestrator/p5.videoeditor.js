@@ -6,7 +6,7 @@ const sketch = (p) => {
 
   p.preload = () => {
     p5Logo = p.loadImage('https://p5js.org/assets/img/p5js-square.svg');
-  }
+  };
 
   p.setup = async () => {
     const canvas = p.createCanvas(640, 360);
@@ -34,14 +34,14 @@ const sketch = (p) => {
         y: p.height / 2,
         width: 200,
         height: 200,
-      }
+      },
     });
 
     // Add the GPU effect
     image.addEffect({
       type: 'brightnessContrast',
       brightness: 0.2, // Make it 20% brighter
-      contrast: 0.3,   // Increase contrast by 30%
+      contrast: 0.3, // Increase contrast by 30%
     });
 
     // Animate the effect properties over time
@@ -56,7 +56,9 @@ const sketch = (p) => {
     editor.addClip(image);
     editor.play();
 
-    window.dispatchEvent(new CustomEvent('sketch-loaded', { detail: { p5: p } }));
+    window.dispatchEvent(
+      new CustomEvent('sketch-loaded', { detail: { p5: p } })
+    );
   };
 
   p.draw = () => {
