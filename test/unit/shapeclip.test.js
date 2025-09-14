@@ -29,13 +29,17 @@ describe('ShapeClip', () => {
   });
 
   test('should call p5.rect for "rect" shapeType', () => {
-    const clip = new ShapeClip('rect', { properties: { width: 50, height: 30 } });
+    const clip = new ShapeClip('rect', {
+      properties: { width: 50, height: 30 },
+    });
     clip.render(mockP5, 0);
     expect(mockP5.rect).toHaveBeenCalledWith(0, 0, 50, 30);
   });
 
   test('should call p5.ellipse for "ellipse" shapeType', () => {
-    const clip = new ShapeClip('ellipse', { properties: { width: 50, height: 30 } });
+    const clip = new ShapeClip('ellipse', {
+      properties: { width: 50, height: 30 },
+    });
     clip.render(mockP5, 0);
     expect(mockP5.ellipse).toHaveBeenCalledWith(0, 0, 50, 30);
   });

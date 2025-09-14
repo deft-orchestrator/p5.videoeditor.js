@@ -20,7 +20,7 @@ const sketch = (p) => {
     editor.timeline.use(WiggleEffectPlugin);
 
     // Create a text clip
-    const textClip = new TextClip("CPU Effects!", {
+    const textClip = new TextClip('CPU Effects!', {
       start: 0,
       duration: 5000,
       properties: {
@@ -28,7 +28,7 @@ const sketch = (p) => {
         y: p.height / 2,
         fontSize: 64,
         fill: '#90be6d',
-      }
+      },
     });
 
     // Use the addEffect factory to add effects by type
@@ -39,20 +39,22 @@ const sketch = (p) => {
 
     textClip.addEffect({
       type: 'wiggle',
-      frequency: 0.5,  // Slow wiggle
-      amplitude: 15,   // Moves 15 pixels
+      frequency: 0.5, // Slow wiggle
+      amplitude: 15, // Moves 15 pixels
     });
 
     textClip.addEffect({
       type: 'fadeOut',
-      start: 4000,     // Starts fading out at 4s
-      duration: 1000,  // Fades out over the last second
+      start: 4000, // Starts fading out at 4s
+      duration: 1000, // Fades out over the last second
     });
 
     editor.addClip(textClip);
     editor.play();
 
-    window.dispatchEvent(new CustomEvent('sketch-loaded', { detail: { p5: p } }));
+    window.dispatchEvent(
+      new CustomEvent('sketch-loaded', { detail: { p5: p } })
+    );
   };
 
   p.draw = () => {

@@ -22,7 +22,7 @@ class EffectBase {
    * @param {p5} p - The p5.js instance.
    * @param {number} relativeTime - The current time within the clip's duration, in milliseconds.
    */
-  apply(clip, p, relativeTime) {
+  apply(_clip, _p, _relativeTime) {
     throw new Error('The "apply()" method must be implemented by a subclass.');
   }
 }

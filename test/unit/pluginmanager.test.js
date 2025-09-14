@@ -22,37 +22,51 @@ describe('PluginManager', () => {
 
   test('should not register a plugin without a name', () => {
     const mockPlugin = { type: 'test', onLoad: () => {} };
-    const consoleWarnSpy = jest.spyOn(console, 'warn').mockImplementation(() => {});
+    const consoleWarnSpy = jest
+      .spyOn(console, 'warn')
+      .mockImplementation(() => {});
 
     pluginManager.register(mockPlugin);
 
     expect(pluginManager.plugins.length).toBe(0);
-    expect(consoleWarnSpy).toHaveBeenCalledWith('Invalid plugin: "name" must be a non-empty string.', mockPlugin);
+    expect(consoleWarnSpy).toHaveBeenCalledWith(
+      'Invalid plugin: "name" must be a non-empty string.',
+      mockPlugin
+    );
 
     consoleWarnSpy.mockRestore();
   });
 
   test('should not register a plugin without an onLoad function', () => {
     const mockPlugin = { name: 'TestPlugin', type: 'test' };
-    const consoleWarnSpy = jest.spyOn(console, 'warn').mockImplementation(() => {});
+    const consoleWarnSpy = jest
+      .spyOn(console, 'warn')
+      .mockImplementation(() => {});
 
     pluginManager.register(mockPlugin);
 
     expect(pluginManager.plugins.length).toBe(0);
-    expect(consoleWarnSpy).toHaveBeenCalledWith('Invalid plugin: "onLoad" must be a function.', mockPlugin);
+    expect(consoleWarnSpy).toHaveBeenCalledWith(
+      'Invalid plugin: "onLoad" must be a function.',
+      mockPlugin
+    );
 
     consoleWarnSpy.mockRestore();
   });
 
   test('should not register the same plugin twice', () => {
     const mockPlugin = { name: 'TestPlugin', type: 'test', onLoad: () => {} };
-    const consoleWarnSpy = jest.spyOn(console, 'warn').mockImplementation(() => {});
+    const consoleWarnSpy = jest
+      .spyOn(console, 'warn')
+      .mockImplementation(() => {});
 
     pluginManager.register(mockPlugin);
     pluginManager.register(mockPlugin); // Attempt to register again
 
     expect(pluginManager.plugins.length).toBe(1);
-    expect(consoleWarnSpy).toHaveBeenCalledWith('Plugin with name "TestPlugin" is already registered.');
+    expect(consoleWarnSpy).toHaveBeenCalledWith(
+      'Plugin with name "TestPlugin" is already registered.'
+    );
 
     consoleWarnSpy.mockRestore();
   });

@@ -1,4 +1,4 @@
-import { VideoEditor, TextClip, ImageClip } from '../src/p5.videoeditor.js';
+import { VideoEditor } from '../src/p5.videoeditor.js';
 
 const sketch = (p) => {
   let editor;
@@ -7,7 +7,7 @@ const sketch = (p) => {
   p.preload = () => {
     // Using a placeholder image URL. In a real scenario, this would be a local asset.
     p5Logo = p.loadImage('https://p5js.org/assets/img/p5js-square.svg');
-  }
+  };
 
   p.setup = () => {
     const canvas = p.createCanvas(640, 360);
@@ -21,25 +21,25 @@ const sketch = (p) => {
       uiContainer: uiContainer,
     });
 
-    // An image clip on the bottom layer (layer 0)
-    const image = new ImageClip(p5Logo, {
-      start: 0,
-      duration: 6000,
-      layer: 0,
-      properties: {
-        x: p.width / 2,
-        y: p.height / 2,
-        width: 150,
-        height: 150,
-        opacity: 0.2,
-      }
-    });
-    image.addKeyframe('rotation', 0, -0.2);
-    image.addKeyframe('rotation', 6000, 0.2);
-    editor.addClip(image);
+    // An image clip on the bottom layer (layer 0), created with the factory method and chaining
+    editor
+      .createImageClip(p5Logo, {
+        start: 0,
+        duration: 6000,
+        layer: 0,
+        properties: {
+          x: p.width / 2,
+          y: p.height / 2,
+          width: 150,
+          height: 150,
+          opacity: 0.2,
+        },
+      })
+      .addKeyframe('rotation', 0, -0.2)
+      .addKeyframe('rotation', 6000, 0.2);
 
     // A text clip on a higher layer (layer 1)
-    const text1 = new TextClip("Layer 1: On Top", {
+    editor.createTextClip('Layer 1: On Top', {
       start: 500,
       duration: 2000,
       layer: 1,
@@ -48,12 +48,11 @@ const sketch = (p) => {
         y: 100,
         fontSize: 32,
         fill: '#f1faee',
-      }
+      },
     });
-    editor.addClip(text1);
 
     // Another text clip that appears later, also on layer 1
-    const text2 = new TextClip("Appears Later", {
+    editor.createTextClip('Appears Later', {
       start: 3000,
       duration: 2500,
       layer: 1,
@@ -62,18 +61,19 @@ const sketch = (p) => {
         y: 260,
         fontSize: 32,
         fill: '#a8dadc',
-      }
+      },
     });
-    editor.addClip(text2);
 
     editor.play();
-    window.dispatchEvent(new CustomEvent('sketch-loaded', { detail: { p5: p } }));
+    window.dispatchEvent(
+      new CustomEvent('sketch-loaded', { detail: { p5: p } })
+    );
   };
 
   p.draw = () => {
     p.background(50);
     editor.update(p);
-    editor.render(p);
+    editor.render(); // p is no longer needed here after RenderEngine refactor
   };
 };
 

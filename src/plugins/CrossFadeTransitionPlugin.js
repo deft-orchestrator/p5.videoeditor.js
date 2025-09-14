@@ -45,7 +45,6 @@ export class CrossFadeTransition extends TransitionBase {
         effect.apply(this.toClip, p, toRelativeTime);
       }
       this.toClip.render(p, toRelativeTime);
-
     } finally {
       // IMPORTANT: Restore the original opacities after rendering.
       this.fromClip.properties.opacity = fromClipOpacity;
@@ -65,5 +64,5 @@ export const CrossFadeTransitionPlugin = {
   type: 'transition',
   onLoad: (timeline) => {
     timeline.registerTransitionType('crossfade', CrossFadeTransition);
-  }
+  },
 };

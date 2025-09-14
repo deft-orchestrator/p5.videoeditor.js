@@ -58,5 +58,5 @@ export const WiggleEffectPlugin = {
   type: 'effect',
   onLoad: (timeline) => {
     timeline.registerEffectType('wiggle', WiggleEffect);
-  }
+  },
 };

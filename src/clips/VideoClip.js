@@ -1,4 +1,7 @@
 import ClipBase from './ClipBase.js';
+import ErrorHandler from '../utils/ErrorHandler.js';
+
+const ALLOWED_PROTOCOLS = ['http:', 'https:', 'blob:', 'data:'];
 
 /**
  * Represents a video clip that can be placed on the timeline.
@@ -11,14 +14,45 @@ class VideoClip extends ClipBase {
    */
   constructor(videoSrc, options = {}) {
     super(options);
+
+    // Explicitly block javascript: URLs before attempting to parse.
+    if (
+      typeof videoSrc === 'string' &&
+      videoSrc.trim().toLowerCase().startsWith('javascript:')
+    ) {
+      ErrorHandler.critical(
+        `Unsafe video protocol: javascript:. Only safe protocols are allowed.`
+      );
+    }
+
+    try {
+      const url = new URL(videoSrc, document.baseURI);
+      if (!ALLOWED_PROTOCOLS.includes(url.protocol)) {
+        ErrorHandler.critical(
+          `Unsafe video protocol: ${url.protocol}. Only safe protocols are allowed.`
+        );
+      }
+    } catch (e) {
+      ErrorHandler.critical(`Invalid video source URL: ${videoSrc}`, e);
+    }
+
     this.videoSrc = videoSrc;
     this.isPlaying = false;
+    this.videoElement = null; // Element will be created lazily
 
     // Add width and height to the animatable properties, with defaults.
     this.properties.width = options.width || 1920; // Default to common video width
     this.properties.height = options.height || 1080; // Default to common video height
+  }
 
-    // Create the HTML5 video element
+  /**
+   * @private
+   * Creates the video element and sets its initial properties.
+   * This is called lazily to avoid creating DOM elements unnecessarily.
+   */
+  _initElement() {
+    if (this.videoElement) return;
+
     this.videoElement = document.createElement('video');
     this.videoElement.src = this.videoSrc;
     this.videoElement.preload = 'auto';
@@ -32,19 +66,22 @@ class VideoClip extends ClipBase {
    * @param {number} relativeTime - The current time within the clip's duration, in milliseconds.
    */
   update(p, relativeTime) {
+    this._initElement(); // Ensure element exists
     super.update(p, relativeTime);
 
-    // Determine if the clip should be considered active based on its time.
-    const isActive = relativeTime >= 0 && relativeTime < this.duration;
+    // Synchronize video time with timeline time.
+    const targetTime = relativeTime / 1000;
+    const timeDifference = Math.abs(this.videoElement.currentTime - targetTime);
+    if (timeDifference > 0.05 || this.videoElement.paused) {
+      this.videoElement.currentTime = targetTime;
+    }
 
-    // Play or pause the video based on the active state
+    const isActive = relativeTime >= 0 && relativeTime < this.duration;
     if (isActive && !this.isPlaying) {
-      // Using a flag `isPlaying` prevents calling play() on every frame.
       const playPromise = this.videoElement.play();
       if (playPromise !== undefined) {
-        playPromise.catch(error => {
+        playPromise.catch(() => {
           // Autoplay was prevented.
-          // console.error("Video play failed:", error);
         });
       }
       this.isPlaying = true;
@@ -56,27 +93,24 @@ class VideoClip extends ClipBase {
 
   /**
    * Renders the video frame to the p5.js canvas if the clip is active.
-   * This method is called by the timeline's render loop.
    * @param {p5} p - The p5.js instance.
    * @param {number} relativeTime - The current time within the clip's duration.
    */
   render(p, relativeTime) {
-    // Let the base class handle transformations (translation, rotation, scale)
+    this._initElement(); // Ensure element exists
     super.render(p, relativeTime);
 
-    // HAVE_FUTURE_DATA (3) or HAVE_ENOUGH_DATA (4) are good states to check for readiness.
-    if (this.videoElement.readyState >= 3) {
+    if (this.videoElement && this.videoElement.readyState >= 3) {
       p.imageMode(p.CENTER);
       p.image(
         this.videoElement,
-        0, // x position is handled by super.render() translate
-        0, // y position is handled by super.render() translate
+        0,
+        0,
         this.properties.width,
         this.properties.height
       );
     }
 
-    // Restore the drawing context
     p.pop();
   }
 }

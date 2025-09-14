@@ -13,7 +13,9 @@ class TransitionBase {
    */
   constructor({ fromClip, toClip, duration }) {
     if (!fromClip || !toClip) {
-      throw new Error('A transition requires both a `fromClip` and a `toClip`.');
+      throw new Error(
+        'A transition requires both a `fromClip` and a `toClip`.'
+      );
     }
     if (typeof duration !== 'number' || duration <= 0) {
       throw new Error('A transition requires a positive `duration`.');
@@ -51,10 +53,12 @@ class TransitionBase {
    * @param {p5} p - The p5.js instance.
    * @param {number} progress - The current progress of the transition (0.0 to 1.0).
    */
-  render(p, progress) {
+  render(_p, _progress) {
     // This method is intended to be overridden by subclasses.
     // For example, a fade transition would use the progress to control opacity.
-    throw new Error('The `render` method must be implemented by a subclass of TransitionBase.');
+    throw new Error(
+      'The `render` method must be implemented by a subclass of TransitionBase.'
+    );
   }
 }
 

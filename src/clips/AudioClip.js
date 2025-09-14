@@ -1,5 +1,4 @@
 import ClipBase from './ClipBase.js';
-import ErrorHandler from '../utils/ErrorHandler.js';
 
 /**
  * @class AudioClip
@@ -55,7 +54,8 @@ class AudioClip extends ClipBase {
     this.soundFile.setVolume(this.properties.volume);
     this.soundFile.pan(this.properties.pan);
 
-    const isWithinClipBounds = relativeTime >= 0 && relativeTime < this.duration;
+    const isWithinClipBounds =
+      relativeTime >= 0 && relativeTime < this.duration;
 
     if (isWithinClipBounds && !this._isPlaying) {
       const startTimeInSound = relativeTime / 1000;
@@ -73,10 +73,9 @@ class AudioClip extends ClipBase {
   /**
    * Audio clips do not have a visual representation, so this method is a no-op.
    * It exists to fulfill the ClipBase interface.
-   * @param {p5} p - The p5.js instance.
-   * @param {number} relativeTime - The current time within the clip's duration.
+   * It exists to fulfill the ClipBase interface.
    */
-  render(p, relativeTime) {
+  render() {
     // Audio clips are not rendered visually.
   }
 }

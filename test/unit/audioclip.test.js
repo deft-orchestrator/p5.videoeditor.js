@@ -27,7 +27,7 @@ describe('AudioClip', () => {
     audioClip = new AudioClip(mockSoundFile, {
       start: 1000,
       duration: 5000, // 5 seconds
-      properties: { volume: 0.5 }
+      properties: { volume: 0.5 },
     });
   });
 
@@ -45,8 +45,7 @@ describe('AudioClip', () => {
 
   test('update() should not do anything if soundFile is invalid', () => {
     const clipWithNoSound = new AudioClip(null);
-    clipWithNoSound.update(mockP5, 100);
-    // No assertions needed, just testing it doesn't crash
+    expect(() => clipWithNoSound.update(mockP5, 100)).not.toThrow();
   });
 
   test('update() should play and jump when timeline enters the clip', () => {

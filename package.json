@@ -3,11 +3,18 @@
   "version": "0.0.1",
   "description": "A motion timeline library for p5.js",
   "type": "module",
-  "main": "src/p5.videoeditor.js",
+  "main": "dist/p5.videoeditor.min.js",
+  "module": "dist/p5.videoeditor.esm.js",
+  "files": [
+    "dist",
+    "src"
+  ],
   "scripts": {
     "start": "python -m http.server 8080",
     "test": "node --experimental-vm-modules node_modules/jest/bin/jest.js",
-    "lint": "echo \"Linter not yet configured. TODO: Set up ESLint.\""
+    "lint": "eslint .",
+    "format": "prettier --write .",
+    "build": "rollup -c"
   },
   "repository": {
     "type": "git",
@@ -30,8 +37,17 @@
   },
   "homepage": "https://github.com/deft-orchestrator/p5.videoeditor.js#readme",
   "devDependencies": {
+    "@eslint/js": "^9.35.0",
+    "@rollup/plugin-node-resolve": "^16.0.1",
+    "@rollup/plugin-terser": "^0.4.4",
+    "eslint": "^9.35.0",
+    "eslint-config-prettier": "^10.1.8",
+    "eslint-plugin-jest": "^29.0.1",
+    "globals": "^16.4.0",
     "jest": "^29.7.0",
-    "p5": "^1.9.0"
+    "p5": "^1.9.0",
+    "prettier": "^3.6.2",
+    "rollup": "^4.50.1"
   },
   "peerDependencies": {
     "p5": ">=1.0.0"

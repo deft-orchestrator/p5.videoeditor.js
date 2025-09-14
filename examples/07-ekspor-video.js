@@ -27,7 +27,7 @@ const sketch = (p) => {
         width: 100,
         height: 100,
         fill: '#457b9d',
-      }
+      },
     });
     rect.addKeyframe('x', 0, 50);
     rect.addKeyframe('x', 3000, p.width - 50);
@@ -44,16 +44,18 @@ const sketch = (p) => {
         y: 100,
         fontSize: 48,
         fill: '#f1faee',
-      }
+      },
     });
-    text.addEffect({type: 'fadeIn', duration: 500});
-    text.addEffect({type: 'fadeOut', duration: 500, start: 1500});
+    text.addEffect({ type: 'fadeIn', duration: 500 });
+    text.addEffect({ type: 'fadeOut', duration: 500, start: 1500 });
     editor.addClip(text);
 
     // In a real app, you might not auto-play if the goal is just to show the button.
     editor.play();
 
-    window.dispatchEvent(new CustomEvent('sketch-loaded', { detail: { p5: p } }));
+    window.dispatchEvent(
+      new CustomEvent('sketch-loaded', { detail: { p5: p } })
+    );
   };
 
   p.draw = () => {

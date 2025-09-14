@@ -1,4 +1,11 @@
-import { describe, beforeEach, afterEach, test, expect, jest } from '@jest/globals';
+import {
+  describe,
+  beforeEach,
+  afterEach,
+  test,
+  expect,
+  jest,
+} from '@jest/globals';
 import ErrorHandler from '../../src/utils/ErrorHandler.js';
 
 describe('ErrorHandler', () => {
@@ -27,7 +34,9 @@ describe('ErrorHandler', () => {
 
     // Expect console.error to have been called
     expect(errorSpy).toHaveBeenCalled();
-    expect(errorSpy).toHaveBeenCalledWith(`[p5.videoeditor.js] Critical Error: ${errorMessage}`);
+    expect(errorSpy).toHaveBeenCalledWith(
+      `[p5.videoeditor.js] Critical Error: ${errorMessage}`
+    );
   });
 
   test('warning() should log to console.warn and not throw an error', () => {
@@ -40,7 +49,9 @@ describe('ErrorHandler', () => {
 
     // Expect console.warn to have been called
     expect(warnSpy).toHaveBeenCalled();
-    expect(warnSpy).toHaveBeenCalledWith(`[p5.videoeditor.js] Warning: ${warnMessage}`);
+    expect(warnSpy).toHaveBeenCalledWith(
+      `[p5.videoeditor.js] Warning: ${warnMessage}`
+    );
   });
 
   test('showUserFriendlyError() should log to console.error', () => {
@@ -48,6 +59,8 @@ describe('ErrorHandler', () => {
     ErrorHandler.showUserFriendlyError(error);
 
     expect(errorSpy).toHaveBeenCalled();
-    expect(errorSpy).toHaveBeenCalledWith(`[p5.videoeditor.js] An error occurred: ${error.message}`);
+    expect(errorSpy).toHaveBeenCalledWith(
+      `[p5.videoeditor.js] An error occurred: ${error.message}`
+    );
   });
 });

@@ -25,7 +25,9 @@ describe('ImageClip', () => {
   });
 
   test('should call p5.image with the correct parameters', () => {
-    const clip = new ImageClip(mockImage, { properties: { width: 100, height: 80 } });
+    const clip = new ImageClip(mockImage, {
+      properties: { width: 100, height: 80 },
+    });
     clip.render(mockP5, 0);
 
     expect(mockP5.imageMode).toHaveBeenCalledWith(undefined); // Since p5 instance is a mock, CENTER is undefined
@@ -33,7 +35,9 @@ describe('ImageClip', () => {
   });
 
   test('should not render if image is not ready', () => {
-    const clip = new ImageClip(null, { properties: { width: 100, height: 80 } });
+    const clip = new ImageClip(null, {
+      properties: { width: 100, height: 80 },
+    });
     clip.render(mockP5, 0);
     expect(mockP5.image).not.toHaveBeenCalled();
   });

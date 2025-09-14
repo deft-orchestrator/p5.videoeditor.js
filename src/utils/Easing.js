@@ -12,43 +12,44 @@ const Easing = {
    * @param {number} t - Time.
    * @returns {number}
    */
-  linear: t => t,
+  linear: (t) => t,
   /**
    * Accelerating from zero velocity.
    * @param {number} t - Time.
    * @returns {number}
    */
-  easeInQuad: t => t*t,
+  easeInQuad: (t) => t * t,
   /**
    * Decelerating to zero velocity.
    * @param {number} t - Time.
    * @returns {number}
    */
-  easeOutQuad: t => t*(2-t),
+  easeOutQuad: (t) => t * (2 - t),
   /**
    * Acceleration until halfway, then deceleration.
    * @param {number} t - Time.
    * @returns {number}
    */
-  easeInOutQuad: t => t<.5 ? 2*t*t : -1+(4-2*t)*t,
+  easeInOutQuad: (t) => (t < 0.5 ? 2 * t * t : -1 + (4 - 2 * t) * t),
   /**
    * Accelerating from zero velocity.
    * @param {number} t - Time.
    * @returns {number}
    */
-  easeInCubic: t => t*t*t,
+  easeInCubic: (t) => t * t * t,
   /**
    * Decelerating to zero velocity.
    * @param {number} t - Time.
    * @returns {number}
    */
-  easeOutCubic: t => (--t)*t*t+1,
+  easeOutCubic: (t) => --t * t * t + 1,
   /**
    * Acceleration until halfway, then deceleration.
    * @param {number} t - Time.
    * @returns {number}
    */
-  easeInOutCubic: t => t<.5 ? 4*t*t*t : (t-1)*(2*t-2)*(2*t-2)+1,
+  easeInOutCubic: (t) =>
+    t < 0.5 ? 4 * t * t * t : (t - 1) * (2 * t - 2) * (2 * t - 2) + 1,
 };
 
 export default Easing;

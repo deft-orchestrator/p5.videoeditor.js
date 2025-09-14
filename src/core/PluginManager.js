@@ -25,12 +25,18 @@ export class PluginManager {
     }
 
     if (typeof plugin.name !== 'string' || plugin.name.trim() === '') {
-      console.warn('Invalid plugin: "name" must be a non-empty string.', plugin);
+      console.warn(
+        'Invalid plugin: "name" must be a non-empty string.',
+        plugin
+      );
       return;
     }
 
     if (typeof plugin.type !== 'string' || plugin.type.trim() === '') {
-      console.warn('Invalid plugin: "type" must be a non-empty string.', plugin);
+      console.warn(
+        'Invalid plugin: "type" must be a non-empty string.',
+        plugin
+      );
       return;
     }
 
@@ -39,7 +45,7 @@ export class PluginManager {
       return;
     }
 
-    if (this.plugins.some(p => p.name === plugin.name)) {
+    if (this.plugins.some((p) => p.name === plugin.name)) {
       console.warn(`Plugin with name "${plugin.name}" is already registered.`);
       return;
     }

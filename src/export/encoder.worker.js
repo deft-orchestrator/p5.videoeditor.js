@@ -38,10 +38,16 @@ const load = async () => {
  */
 self.onmessage = async ({ data: { frames, frameRate } }) => {
   try {
-    self.postMessage({ type: 'log', data: 'Worker received job. Loading FFmpeg...' });
+    self.postMessage({
+      type: 'log',
+      data: 'Worker received job. Loading FFmpeg...',
+    });
     await load();
 
-    self.postMessage({ type: 'log', data: 'Writing frames to virtual file system...' });
+    self.postMessage({
+      type: 'log',
+      data: 'Writing frames to virtual file system...',
+    });
     // Write each frame to FFmpeg's virtual file system.
     for (let i = 0; i < frames.length; i++) {
       const frameNumber = String(i).padStart(4, '0');
@@ -66,13 +72,15 @@ self.onmessage = async ({ data: { frames, frameRate } }) => {
       'output.mp4',
     ]);
 
-    self.postMessage({ type: 'log', data: 'Encoding complete. Reading output file...' });
+    self.postMessage({
+      type: 'log',
+      data: 'Encoding complete. Reading output file...',
+    });
     // Read the resulting video file.
     const resultData = await ffmpeg.readFile('output.mp4');
 
     // Send the final video data back to the main thread.
     self.postMessage({ type: 'done', data: resultData }, [resultData.buffer]);
-
   } catch (error) {
     self.postMessage({ type: 'error', data: error.message });
   }

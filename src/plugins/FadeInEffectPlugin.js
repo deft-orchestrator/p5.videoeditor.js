@@ -7,7 +7,10 @@ export class FadeInEffect extends EffectBase {
   }
 
   apply(clip, p, relativeTime) {
-    if (relativeTime >= this.start && relativeTime < this.start + this.duration) {
+    if (
+      relativeTime >= this.start &&
+      relativeTime < this.start + this.duration
+    ) {
       const effectTime = relativeTime - this.start;
       const t = effectTime / this.duration;
       // Multiplies the existing opacity, allowing it to fade-in to a keyframed value.

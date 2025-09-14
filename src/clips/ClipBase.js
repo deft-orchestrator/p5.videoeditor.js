@@ -19,7 +19,13 @@ class ClipBase {
    * @param {string|null} [options.assetKey=null] - A key to identify the asset associated with this clip, used for memory management.
    * @param {object} [options.properties={}] - Initial values for animatable properties (e.g., x, y, rotation, scale, opacity).
    */
-  constructor({ start = 0, duration = 1000, layer = 0, assetKey = null, ...options } = {}) {
+  constructor({
+    start = 0,
+    duration = 1000,
+    layer = 0,
+    assetKey = null,
+    ...options
+  } = {}) {
     this.start = start;
     this.duration = duration;
     this.layer = layer;
@@ -46,11 +52,16 @@ class ClipBase {
    * @param {number} time - The time for this keyframe, relative to the clip's start time, in milliseconds.
    * @param {*} value - The value of the property at this keyframe.
    * @param {string} [easing='linear'] - The easing function to use for the transition from the previous keyframe.
-   * @throws {Error} If the specified property is not a recognized animatable property of the clip.
+   * @returns {this} The current clip instance for chaining.
+   * @example
+   * myClip.addKeyframe('x', 0, 100)
+   *       .addKeyframe('x', 1000, 200, 'easeInQuad');
    */
   addKeyframe(property, time, value, easing = 'linear') {
     if (!Object.prototype.hasOwnProperty.call(this.properties, property)) {
-      throw new Error(`Property "${property}" is not a recognized or animatable property of this clip.`);
+      ErrorHandler.critical(
+        `Property "${property}" is not a recognized or animatable property of this clip.`
+      );
     }
 
     if (!this.keyframes[property]) {
@@ -63,19 +74,25 @@ class ClipBase {
     } else {
       this.keyframes[property].sort((a, b) => a.time - b.time);
     }
+    return this;
   }
 
   /**
-   * Adds an effect to the clip using a factory pattern based on the effect type.
+   * Adds an effect to the clip.
    * @param {object} options - The configuration for the effect.
    * @param {string} options.type - The type of effect to add (e.g., 'fadeIn', 'wiggle').
-   * @returns {ClipBase} The current clip instance for chaining.
+   * @returns {this} The current clip instance for chaining.
+   * @example
+   * myClip.addEffect({ type: 'fadeIn', duration: 500 })
+   *       .addEffect({ type: 'fadeOut', start: 1500, duration: 500 });
    */
   addEffect(options = {}) {
     const { type } = options;
 
     if (!this.timeline) {
-      ErrorHandler.error('Cannot add an effect to a clip that is not on a timeline.');
+      ErrorHandler.critical(
+        'Cannot add an effect to a clip that is not on a timeline.'
+      );
       return this;
     }
 
@@ -91,8 +108,8 @@ class ClipBase {
   }
 
   /**
-   * Sorts the keyframes for all properties. This is called by the timeline after
-   * a batch update operation to ensure keyframes are in the correct chronological order.
+   * Sorts the keyframes for all properties.
+   * @internal
    */
   finalizeChanges() {
     for (const prop in this.keyframes) {
@@ -104,7 +121,7 @@ class ClipBase {
 
   /**
    * Updates the clip's properties based on the current time.
-   * This involves resetting properties, calculating values from keyframes, and applying effects.
+   * @internal
    * @param {p5} p - The p5.js instance.
    * @param {number} relativeTime - The current time within the clip's duration, in milliseconds.
    */
@@ -116,8 +133,6 @@ class ClipBase {
         this.properties[prop] = this._calculateValue(p, prop, relativeTime);
       }
     }
-
-    // The responsibility of applying effects has been moved to the RenderEngine.
   }
 
   /**
@@ -160,29 +175,27 @@ class ClipBase {
     const prevKeyframe = kfs[prevKeyframeIndex];
     const nextKeyframe = kfs[prevKeyframeIndex + 1];
 
-    const t = (time - prevKeyframe.time) / (nextKeyframe.time - prevKeyframe.time);
+    const t =
+      (time - prevKeyframe.time) / (nextKeyframe.time - prevKeyframe.time);
     const easingFunction = Easing[prevKeyframe.easing] || Easing.linear;
     const easedT = easingFunction(t);
 
     const from = prevKeyframe.value;
     const to = nextKeyframe.value;
 
-    // Check if the values are p5.Color objects for color interpolation
     if (p.Color && from instanceof p.Color && to instanceof p.Color) {
       return p.lerpColor(from, to, easedT);
     }
 
-    // Default to linear interpolation for numbers
     return p.lerp(from, to, easedT);
   }
 
   /**
-   * Renders the clip's base transformations (translation, rotation, scale).
-   * Subclasses are responsible for the actual drawing of content (e.g., text, image).
-   * @param {p5} p - The p5.js instance.
-   * @param {number} relativeTime - The current time within the clip's duration.
+   * Renders the clip's base transformations.
+   * @internal
+   * @param {p5} p - The p5.js instance or a p5.Graphics object.
    */
-  render(p, relativeTime) {
+  render(p) {
     p.push();
     p.translate(this.properties.x, this.properties.y);
     p.rotate(this.properties.rotation);

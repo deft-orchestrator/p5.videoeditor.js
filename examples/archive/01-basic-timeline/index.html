@@ -1,34 +1,34 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
-<head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>p5.videoeditor.js - Basic Example</title>
-  <style>
-    body {
-      padding: 0;
-      margin: 0;
-      background-color: #1b1b1b;
-      overflow: hidden;
-    }
-    main {
-      display: flex;
-      justify-content: center;
-      align-items: center;
-      height: 100vh;
-    }
-  </style>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.9.0/p5.min.js"></script>
-</head>
-<body>
-  <main></main>
-  <div id="controls"></div>
-  <!--
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>p5.videoeditor.js - Basic Example</title>
+    <style>
+      body {
+        padding: 0;
+        margin: 0;
+        background-color: #1b1b1b;
+        overflow: hidden;
+      }
+      main {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        height: 100vh;
+      }
+    </style>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.9.0/p5.min.js"></script>
+  </head>
+  <body>
+    <main></main>
+    <div id="controls"></div>
+    <!--
     We use type="module" to allow the sketch.js file to use ES6 import statements
     to load the video editor library directly from the src folder.
     For this to work, you need to run this from a local web server.
     Opening the HTML file directly from the filesystem will likely result in a CORS error.
   -->
-  <script type="module" src="sketch.js"></script>
-</body>
+    <script type="module" src="sketch.js"></script>
+  </body>
 </html>

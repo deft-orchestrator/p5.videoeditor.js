@@ -3,8 +3,6 @@ import {
   VideoEditor,
   TextClip,
   ShapeClip,
-  FadeInEffect,
-  FadeOutEffect
 } from '../../src/p5.videoeditor.js';
 
 let editor;
@@ -45,9 +43,9 @@ const sketch = (p) => {
 
     // A text clip that fades in and out
     const textClip = new TextClip('Hello, World!', {
-      start: 500,     // Starts at 0.5s
+      start: 500, // Starts at 0.5s
       duration: 2000, // Lasts for 2s (ends at 2.5s)
-      layer: 1,       // Drawn on top of the rectangle
+      layer: 1, // Drawn on top of the rectangle
       // Initial properties
       x: 200,
       y: 100,
