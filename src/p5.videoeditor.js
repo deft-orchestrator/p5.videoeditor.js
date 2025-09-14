@@ -9,6 +9,7 @@ import ShapeClip from './clips/ShapeClip.js';
 import ImageClip from './clips/ImageClip.js';
 import AudioClip from './clips/AudioClip.js';
 import VideoClip from './clips/VideoClip.js';
+import SlideShowClip from './clips/SlideShowClip.js';
 import EffectBase from './effects/EffectBase.js';
 
 /**
@@ -82,6 +83,22 @@ class VideoEditor {
    */
   createVideoClip(videoSrc, options = {}) {
     const clip = new VideoClip(videoSrc, options);
+    this.timeline.addClip(clip);
+    return clip;
+  }
+
+  /**
+   * Creates a slideshow clip and adds it to the timeline.
+   * This clip can contain other clips and be controlled with next() and previous().
+   * @param {object} [options={}] - Configuration options for the SlideShowClip.
+   * @returns {SlideShowClip} The newly created SlideShowClip instance for chaining.
+   * @example
+   * const slideshow = editor.createSlideShowClip({ duration: 20 });
+   * slideshow.addSlide([ editor.createTextClip('First Slide') ]);
+   * slideshow.addSlide([ editor.createTextClip('Second Slide') ]);
+   */
+  createSlideShowClip(options = {}) {
+    const clip = new SlideShowClip(options);
     this.timeline.addClip(clip);
     return clip;
   }
@@ -180,6 +197,31 @@ class VideoEditor {
   }
 
   /**
+   * Handles mouse press events to check for interactions like hotspot clicks.
+   * This method should be called from the p5.js `mousePressed()` function.
+   * @param {p5} p - The p5.js instance, which provides mouseX and mouseY.
+   * @example
+   * function mousePressed() {
+   *   editor.handleMousePressed(p);
+   * }
+   */
+  handleMousePressed(p) {
+    const activeClips = this.timeline.getActiveClips();
+    // Iterate in reverse order so we check the topmost clips first.
+    for (let i = activeClips.length - 1; i >= 0; i--) {
+      const clip = activeClips[i];
+      if (clip instanceof VideoClip) {
+        const relativeTime = this.timeline.time - clip.start;
+        const wasClicked = clip.checkClick(p, p.mouseX, p.mouseY, relativeTime);
+        if (wasClicked) {
+          // Stop after the first clip that handles the click.
+          break;
+        }
+      }
+    }
+  }
+
+  /**
    * Displays a user-friendly error message.
    * @param {Error} error - The error object to display.
    */
@@ -202,5 +244,6 @@ export {
   ImageClip,
   AudioClip,
   VideoClip,
+  SlideShowClip,
   EffectBase,
 };
