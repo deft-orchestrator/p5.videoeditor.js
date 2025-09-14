@@ -4,6 +4,42 @@ import ErrorHandler from '../utils/ErrorHandler.js';
 const ALLOWED_PROTOCOLS = ['http:', 'https:', 'blob:', 'data:'];
 
 /**
+ * @class Hotspot
+ * @description Represents a clickable area on a video clip.
+ * This is a helper class used internally by VideoClip.
+ */
+class Hotspot {
+  constructor(options = {}) {
+    this.x = options.x || 0; // Center x, relative to the video's center
+    this.y = options.y || 0; // Center y, relative to the video's center
+    this.width = options.width || 100;
+    this.height = options.height || 50;
+    this.start = options.start || 0; // Start time relative to the video clip's start, in ms
+    this.duration = options.duration || 1000; // Duration in ms
+    this.onClick = options.onClick || (() => {});
+  }
+
+  /**
+   * Checks if a point is inside the hotspot's bounds.
+   * The coordinates are relative to the video clip's center.
+   * @param {number} px - The x-coordinate of the point to check.
+   * @param {number} py - The y-coordinate of the point to check.
+   * @returns {boolean} True if the point is inside the hotspot.
+   */
+  isHit(px, py) {
+    // Assuming imageMode(CENTER)
+    const halfW = this.width / 2;
+    const halfH = this.height / 2;
+    return (
+      px >= this.x - halfW &&
+      px <= this.x + halfW &&
+      py >= this.y - halfH &&
+      py <= this.y + halfH
+    );
+  }
+}
+
+/**
  * Represents a video clip that can be placed on the timeline.
  * Manages the playback and synchronization of an HTML5 video element.
  */
@@ -43,6 +79,8 @@ class VideoClip extends ClipBase {
     // Add width and height to the animatable properties, with defaults.
     this.properties.width = options.width || 1920; // Default to common video width
     this.properties.height = options.height || 1080; // Default to common video height
+
+    this.hotspots = [];
   }
 
   /**
@@ -96,6 +134,55 @@ class VideoClip extends ClipBase {
    * @param {p5} p - The p5.js instance.
    * @param {number} relativeTime - The current time within the clip's duration.
    */
+  /**
+   * Adds a clickable hotspot to the video clip.
+   * @param {object} options - Configuration for the hotspot.
+   * @param {number} options.x - Center x-coordinate, relative to the video's center.
+   * @param {number} options.y - Center y-coordinate, relative to the video's center.
+   * @param {number} options.width - Width of the hotspot.
+   * @param {number} options.height - Height of the hotspot.
+   * @param {number} options.start - Start time, relative to the clip's start, in ms.
+   * @param {number} options.duration - Duration of the hotspot, in ms.
+   * @param {Function} options.onClick - The callback function to execute when clicked.
+   * @returns {this} The current VideoClip instance for chaining.
+   */
+  addHotspot(options = {}) {
+    this.hotspots.push(new Hotspot(options));
+    return this;
+  }
+
+  /**
+   * Checks if a click at the given canvas coordinates hits any active hotspot.
+   * @internal
+   * @param {p5} p - The p5 instance.
+   * @param {number} canvasX - The mouseX coordinate on the canvas.
+   * @param {number} canvasY - The mouseY coordinate on the canvas.
+   * @param {number} relativeTime - The current time within the clip's duration.
+   */
+  checkClick(p, canvasX, canvasY, relativeTime) {
+    // This simple implementation does not account for parent clip rotation or scale.
+    // It assumes the video clip is only translated.
+    const clipCanvasX = this.properties.x;
+    const clipCanvasY = this.properties.y;
+
+    // Convert canvas coordinates to be relative to the clip's center.
+    const relativeX = canvasX - clipCanvasX;
+    const relativeY = canvasY - clipCanvasY;
+
+    for (const hotspot of this.hotspots) {
+      const isTimeActive =
+        relativeTime >= hotspot.start &&
+        relativeTime < hotspot.start + hotspot.duration;
+
+      if (isTimeActive && hotspot.isHit(relativeX, relativeY)) {
+        hotspot.onClick();
+        // Stop after the first hit to prevent multiple triggers.
+        return true;
+      }
+    }
+    return false;
+  }
+
   render(p, relativeTime) {
     this._initElement(); // Ensure element exists
     super.render(p, relativeTime);
@@ -110,6 +197,26 @@ class VideoClip extends ClipBase {
         this.properties.height
       );
     }
+
+    // --- Render Hotspots (for debugging/visualization) ---
+    // Make sure we are in a p5.js environment with drawing capabilities
+    if (p.rectMode) {
+      p.push();
+      p.rectMode(p.CENTER);
+      p.stroke('rgba(255, 0, 0, 0.75)');
+      p.strokeWeight(2);
+      p.noFill();
+      for (const hotspot of this.hotspots) {
+        const isTimeActive =
+          relativeTime >= hotspot.start &&
+          relativeTime < hotspot.start + hotspot.duration;
+        if (isTimeActive) {
+          p.rect(hotspot.x, hotspot.y, hotspot.width, hotspot.height);
+        }
+      }
+      p.pop();
+    }
+    // --- End Hotspot Rendering ---
 
     p.pop();
   }
