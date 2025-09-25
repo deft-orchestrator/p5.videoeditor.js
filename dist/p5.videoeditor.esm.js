@@ -72,9 +72,7 @@ class RenderEngine {
     this.height = canvas.height;
 
     // Create off-screen graphics buffers for multi-pass rendering
-    // sceneBuffer is where the main scene (clips and transitions) is drawn.
     this.sceneBuffer = p.createGraphics(this.width, this.height, p.WEBGL);
-    // effectBuffer is used for applying post-processing shaders.
     this.effectBuffer = p.createGraphics(this.width, this.height, p.WEBGL);
 
     this.shaders = {}; // Cache for compiled shaders
@@ -91,25 +89,40 @@ class RenderEngine {
     if (this.shaders[key] || this.shaderPromises[key]) {
       return;
     }
-    // p5.js's loadShader is asynchronous. We store the promise.
-    const vertUrl = 'src/shaders/passthrough.vert'; // Assuming a generic vertex shader
+    const vertUrl = 'src/shaders/passthrough.vert';
     const promise = this.p.loadShader(vertUrl, fragUrl, (shader) => {
       this.shaders[key] = shader;
-      delete this.shaderPromises[key]; // Remove promise once resolved
+      delete this.shaderPromises[key];
       console.log(`Shader "${key}" loaded.`);
     });
     this.shaderPromises[key] = promise;
   }
 
   /**
-   * The main rendering entry point. It orchestrates the multi-pass rendering process.
-   * This method is now async to await shader loading.
+   * Orchestrates the multi-pass rendering process.
    * @param {Set<ClipBase>} clipsToRender - A Set of all clips that should be rendered this frame.
    * @param {TransitionBase[]} activeTransitions - A list of transitions currently active.
    * @param {number} time - The current time of the timeline.
    */
   async render(clipsToRender, activeTransitions, time) {
-    // Pass 1: Render the entire scene (clips and transitions) to the scene buffer.
+    // Pass 1: Render the scene of clips and transitions to a buffer.
+    this._renderScene(clipsToRender, activeTransitions, time);
+
+    // Pass 2: Apply post-processing effects, ping-ponging between buffers.
+    const finalBuffer = await this._applyPostProcessing();
+
+    // Pass 3: Draw the final result to the main canvas.
+    this.p.image(finalBuffer, 0, 0);
+
+    // Clear the effects queue for the next frame.
+    this.postProcessingEffects = [];
+  }
+
+  /**
+   * @private
+   * Renders all active clips and transitions to the main scene buffer.
+   */
+  _renderScene(clipsToRender, activeTransitions, time) {
     this.sceneBuffer.clear();
     this.sceneBuffer.push();
 
@@ -124,66 +137,66 @@ class RenderEngine {
     );
     standaloneClips.sort((a, b) => a.layer - b.layer);
 
-    // Render all clips that are not part of an active transition.
     for (const clip of standaloneClips) {
       const relativeTime = time - clip.start;
-      // Apply effects and render to the scene buffer
       for (const effect of clip.effects) {
-        // NOTE: This logic assumes non-GPU effects for now.
-        // A full implementation would check effect type.
         effect.apply(clip, this.sceneBuffer, relativeTime);
       }
-      clip.render(this.sceneBuffer, relativeTime);
+      clip.render(this.sceneBuffer);
     }
 
-    // Render the active transitions.
     for (const transition of activeTransitions) {
       transition.render(this.sceneBuffer, time);
     }
 
     this.sceneBuffer.pop();
+  }
 
-    // Pass 2: Apply post-processing effects.
-    // We'll ping-pong between buffers if there are multiple effects.
-    // For now, we just apply one effect from sceneBuffer to effectBuffer.
+  /**
+   * @private
+   * Applies all queued post-processing effects to the scene buffer.
+   * @returns {p5.Graphics} The final graphics buffer with all effects applied.
+   */
+  async _applyPostProcessing() {
+    if (this.postProcessingEffects.length === 0) {
+      return this.sceneBuffer;
+    }
+
     let sourceBuffer = this.sceneBuffer;
+    let destinationBuffer = this.effectBuffer;
 
-    if (this.postProcessingEffects.length > 0) {
-      for (const effect of this.postProcessingEffects) {
-        // Ensure the shader is loaded before trying to use it.
-        if (this.shaderPromises[effect.type]) {
-          await this.shaderPromises[effect.type];
-        }
+    for (let i = 0; i < this.postProcessingEffects.length; i++) {
+      const effect = this.postProcessingEffects[i];
 
-        const shader = this.shaders[effect.type];
-        if (shader) {
-          this.effectBuffer.shader(shader);
-          shader.setUniform('u_texture', sourceBuffer);
+      if (this.shaderPromises[effect.type]) {
+        await this.shaderPromises[effect.type];
+      }
 
-          // Apply all uniforms defined on the effect object
-          if (effect.uniforms) {
-            for (const [key, value] of Object.entries(effect.uniforms)) {
-              shader.setUniform(key, value);
-            }
+      const shader = this.shaders[effect.type];
+      if (shader) {
+        destinationBuffer.shader(shader);
+        shader.setUniform('u_texture', sourceBuffer);
+
+        if (effect.uniforms) {
+          for (const [key, value] of Object.entries(effect.uniforms)) {
+            shader.setUniform(key, value);
           }
-
-          // Draw a full-screen quad to apply the shader to the entire buffer
-          this.effectBuffer.rect(
-            -this.width / 2,
-            -this.height / 2,
-            this.width,
-            this.height
-          );
-          sourceBuffer = this.effectBuffer; // The output of this pass is the input for the next
         }
+
+        destinationBuffer.rect(
+          -this.width / 2,
+          -this.height / 2,
+          this.width,
+          this.height
+        );
+
+        // Ping-pong: swap buffers for the next pass
+        [sourceBuffer, destinationBuffer] = [destinationBuffer, sourceBuffer];
       }
     }
 
-    // Pass 3: Draw the final result to the main canvas.
-    this.p.image(sourceBuffer, 0, 0);
-
-    // Clear the effects queue for the next frame.
-    this.postProcessingEffects = [];
+    // The final rendered image is in the last sourceBuffer
+    return sourceBuffer;
   }
 }
 
@@ -231,19 +244,18 @@ class ErrorHandler {
 /**
  * @class Timeline
  * @description Manages the collection of clips, their timing, and the overall playback state.
- * It is the central component that orchestrates the animation.
+ * It is the central component that orchestrates the animation. This class is typically
+ * accessed via `editor.timeline`.
  */
 class Timeline {
   /**
    * @constructor
-   * @param {object} [options={}] - Configuration options for the timeline.
-   * @param {p5} p - The p5 instance.
+   * @param {p5} p - The p5.js instance.
    * @param {HTMLCanvasElement} canvas - The canvas element.
-   * @param {number} [options.frameRate=60] - The target frame rate for the animation.
+   * @param {object} [options={}] - Configuration options for the timeline.
    * @param {number} [options.duration=10000] - The total duration of the timeline in milliseconds.
    */
-  constructor(p, canvas, { frameRate = 60, duration = 10000 } = {}) {
-    this.frameRate = frameRate;
+  constructor(p, canvas, { duration = 10000 } = {}) {
     this.duration = duration;
     this.clips = [];
     this.transitions = [];
@@ -263,15 +275,17 @@ class Timeline {
 
   /**
    * Registers a plugin with the timeline.
-   * This is a wrapper around the PluginManager's register method.
    * @param {object} plugin - The plugin to register.
+   * @example
+   * import MyCustomPlugin from './plugins/my-plugin.js';
+   * editor.timeline.use(new MyCustomPlugin());
    */
   use(plugin) {
     this.pluginManager.register(plugin);
   }
 
   /**
-   * Adds a clip to the timeline.
+   * Adds a clip to the timeline. Typically called by the `VideoEditor` factory methods.
    * @param {ClipBase} clip - The clip instance to add.
    */
   addClip(clip) {
@@ -286,17 +300,7 @@ class Timeline {
   }
 
   /**
-   * Creates and adds a transition between two clips.
-   * @param {object} options - The configuration for the transition.
-   * @param {ClipBase} options.fromClip - The clip to transition from.
-   * @param {ClipBase} options.toClip - The clip to transition to.
-   * @param {number} options.duration - The duration of the transition in milliseconds.
-   * @param {string} options.type - The type of transition (e.g., 'crossfade').
-   * @returns {TransitionBase} The created transition instance.
-   */
-  /**
    * Registers a new transition type with the timeline.
-   * This is typically called by a transition plugin's onLoad method.
    * @param {string} name - The name of the transition (e.g., 'crossfade').
    * @param {TransitionBase} transitionClass - The class constructor for the transition.
    */
@@ -306,7 +310,6 @@ class Timeline {
 
   /**
    * Registers a new effect type with the timeline.
-   * This is typically called by an effect plugin's onLoad method.
    * @param {string} name - The name of the effect (e.g., 'wiggle').
    * @param {EffectBase} effectClass - The class constructor for the effect.
    */
@@ -314,6 +317,19 @@ class Timeline {
     this.effectTypes.set(name, effectClass);
   }
 
+  /**
+   * Creates and adds a transition between two clips.
+   * @param {object} options - The configuration for the transition.
+   * @param {ClipBase} options.fromClip - The clip to transition from.
+   * @param {ClipBase} options.toClip - The clip to transition to.
+   * @param {number} options.duration - The duration of the transition in milliseconds.
+   * @param {string} options.type - The type of transition (e.g., 'crossfade').
+   * @returns {TransitionBase|null} The created transition instance, or null if the type is unknown.
+   * @example
+   * const clipA = editor.createTextClip('A', { start: 0, duration: 2 });
+   * const clipB = editor.createTextClip('B', { start: 1, duration: 2 });
+   * editor.timeline.addTransition({ fromClip: clipA, toClip: clipB, duration: 1, type: 'crossfade' });
+   */
   addTransition(options) {
     const TransitionClass = this.transitionTypes.get(options.type);
     if (!TransitionClass) {
@@ -327,8 +343,12 @@ class Timeline {
 
   /**
    * Groups multiple clip or keyframe additions into a single operation to optimize performance.
-   * Keyframes and clips are sorted only once at the end of the batch.
    * @param {Function} callback - A function that contains the operations to be batched.
+   * @example
+   * editor.timeline.batch(() => {
+   *   editor.createTextClip(...);
+   *   editor.createImageClip(...);
+   * });
    */
   batch(callback) {
     this.isBatching = true;
@@ -355,20 +375,54 @@ class Timeline {
   }
 
   /**
-   * Gets all clips that are active at the current time.
+   * Gets all clips that are directly active at the current time.
+   * Note: This does not include clips that are only active because of a transition.
    * @returns {ClipBase[]} An array of active clips.
    */
   getActiveClips() {
-    return this.clips.filter(
-      (clip) =>
-        this.time >= clip.start && this.time < clip.start + clip.duration
-    );
+    const activeClips = [];
+    for (const clip of this.clips) {
+      if (this.time >= clip.start && this.time < clip.start + clip.duration) {
+        activeClips.push(clip);
+      }
+    }
+    return activeClips;
+  }
+
+  /**
+   * @private
+   * Determines which clips and transitions are active at a specific time.
+   * @param {number} time - The time to check against.
+   * @returns {{clipsToProcess: Set<ClipBase>, activeTransitions: TransitionBase[]}}
+   */
+  _getFrameState(time) {
+    const clipsToProcess = new Set();
+    const activeTransitions = [];
+
+    for (const clip of this.clips) {
+      if (time >= clip.start && time < clip.start + clip.duration) {
+        clipsToProcess.add(clip);
+      }
+    }
+
+    for (const transition of this.transitions) {
+      if (
+        time >= transition.start &&
+        time < transition.start + transition.duration
+      ) {
+        activeTransitions.push(transition);
+        clipsToProcess.add(transition.fromClip);
+        clipsToProcess.add(transition.toClip);
+      }
+    }
+
+    return { clipsToProcess, activeTransitions };
   }
 
   /**
    * The main update loop for the timeline. It advances the time and updates all relevant clips.
-   * This includes clips that are currently active and any clips involved in an active transition.
    * @param {p5} p - The p5.js instance.
+   * @internal
    */
   update(p) {
     if (!this._pluginsLoaded) {
@@ -383,29 +437,9 @@ class Timeline {
       }
     }
 
-    const clipsToUpdate = new Set();
+    const { clipsToProcess } = this._getFrameState(this.time);
 
-    // Add all clips that are currently active
-    for (const clip of this.clips) {
-      if (this.time >= clip.start && this.time < clip.start + clip.duration) {
-        clipsToUpdate.add(clip);
-      }
-    }
-
-    // Add clips from active transitions to ensure they are updated,
-    // even if they are outside their normal active window.
-    for (const transition of this.transitions) {
-      if (
-        this.time >= transition.start &&
-        this.time < transition.start + transition.duration
-      ) {
-        clipsToUpdate.add(transition.fromClip);
-        clipsToUpdate.add(transition.toClip);
-      }
-    }
-
-    // Call update on every clip that needs processing for this frame.
-    for (const clip of clipsToUpdate) {
+    for (const clip of clipsToProcess) {
       const relativeTime = this.time - clip.start;
       clip.update(p, relativeTime);
     }
@@ -413,30 +447,13 @@ class Timeline {
 
   /**
    * Renders the current state of the timeline by delegating to the RenderEngine.
-   * @param {p5} p - The p5.js instance (passed for consistency, but RenderEngine already has it).
+   * @internal
    */
-  async render(p) {
-    const clipsToRender = new Set();
-    for (const clip of this.clips) {
-      if (this.time >= clip.start && this.time < clip.start + clip.duration) {
-        clipsToRender.add(clip);
-      }
-    }
-
-    const activeTransitions = [];
-    for (const transition of this.transitions) {
-      if (
-        this.time >= transition.start &&
-        this.time < transition.start + transition.duration
-      ) {
-        activeTransitions.push(transition);
-        // Ensure both clips involved in the transition are considered for rendering
-        clipsToRender.add(transition.fromClip);
-        clipsToRender.add(transition.toClip);
-      }
-    }
-
-    await this.renderEngine.render(clipsToRender, activeTransitions, this.time);
+  async render() {
+    const { clipsToProcess, activeTransitions } = this._getFrameState(
+      this.time
+    );
+    await this.renderEngine.render(clipsToProcess, activeTransitions, this.time);
   }
 
   /**
@@ -466,14 +483,13 @@ class Timeline {
   /**
    * @private
    * Loads all registered plugins by calling their onLoad methods.
-   * This is called automatically before the first update cycle.
    */
   _loadPlugins() {
     for (const plugin of this.pluginManager.plugins) {
       try {
         plugin.onLoad(this);
       } catch (error) {
-        ErrorHandler.error(`Error loading plugin: ${plugin.name}`, error);
+        ErrorHandler.critical(`Error loading plugin: ${plugin.name}`, error);
       }
     }
   }
@@ -573,10 +589,11 @@ class Exporter {
       case 'error':
         if (this.onError) this.onError(new Error(data.data));
         break;
-      case 'done':
+      case 'done': {
         const videoBlob = new Blob([data.data.buffer], { type: 'video/mp4' });
         if (this.onComplete) this.onComplete(videoBlob);
         break;
+      }
       default:
         console.warn(
           'Exporter received unknown message type from worker:',
@@ -1054,11 +1071,14 @@ class ClipBase {
    * @param {number} time - The time for this keyframe, relative to the clip's start time, in milliseconds.
    * @param {*} value - The value of the property at this keyframe.
    * @param {string} [easing='linear'] - The easing function to use for the transition from the previous keyframe.
-   * @throws {Error} If the specified property is not a recognized animatable property of the clip.
+   * @returns {this} The current clip instance for chaining.
+   * @example
+   * myClip.addKeyframe('x', 0, 100)
+   *       .addKeyframe('x', 1000, 200, 'easeInQuad');
    */
   addKeyframe(property, time, value, easing = 'linear') {
     if (!Object.prototype.hasOwnProperty.call(this.properties, property)) {
-      throw new Error(
+      ErrorHandler.critical(
         `Property "${property}" is not a recognized or animatable property of this clip.`
       );
     }
@@ -1073,19 +1093,23 @@ class ClipBase {
     } else {
       this.keyframes[property].sort((a, b) => a.time - b.time);
     }
+    return this;
   }
 
   /**
-   * Adds an effect to the clip using a factory pattern based on the effect type.
+   * Adds an effect to the clip.
    * @param {object} options - The configuration for the effect.
    * @param {string} options.type - The type of effect to add (e.g., 'fadeIn', 'wiggle').
-   * @returns {ClipBase} The current clip instance for chaining.
+   * @returns {this} The current clip instance for chaining.
+   * @example
+   * myClip.addEffect({ type: 'fadeIn', duration: 500 })
+   *       .addEffect({ type: 'fadeOut', start: 1500, duration: 500 });
    */
   addEffect(options = {}) {
     const { type } = options;
 
     if (!this.timeline) {
-      ErrorHandler.error(
+      ErrorHandler.critical(
         'Cannot add an effect to a clip that is not on a timeline.'
       );
       return this;
@@ -1103,8 +1127,8 @@ class ClipBase {
   }
 
   /**
-   * Sorts the keyframes for all properties. This is called by the timeline after
-   * a batch update operation to ensure keyframes are in the correct chronological order.
+   * Sorts the keyframes for all properties.
+   * @internal
    */
   finalizeChanges() {
     for (const prop in this.keyframes) {
@@ -1116,7 +1140,7 @@ class ClipBase {
 
   /**
    * Updates the clip's properties based on the current time.
-   * This involves resetting properties, calculating values from keyframes, and applying effects.
+   * @internal
    * @param {p5} p - The p5.js instance.
    * @param {number} relativeTime - The current time within the clip's duration, in milliseconds.
    */
@@ -1128,8 +1152,6 @@ class ClipBase {
         this.properties[prop] = this._calculateValue(p, prop, relativeTime);
       }
     }
-
-    // The responsibility of applying effects has been moved to the RenderEngine.
   }
 
   /**
@@ -1180,22 +1202,19 @@ class ClipBase {
     const from = prevKeyframe.value;
     const to = nextKeyframe.value;
 
-    // Check if the values are p5.Color objects for color interpolation
     if (p.Color && from instanceof p.Color && to instanceof p.Color) {
       return p.lerpColor(from, to, easedT);
     }
 
-    // Default to linear interpolation for numbers
     return p.lerp(from, to, easedT);
   }
 
   /**
-   * Renders the clip's base transformations (translation, rotation, scale).
-   * Subclasses are responsible for the actual drawing of content (e.g., text, image).
-   * @param {p5} p - The p5.js instance.
-   * @param {number} relativeTime - The current time within the clip's duration.
+   * Renders the clip's base transformations.
+   * @internal
+   * @param {p5} p - The p5.js instance or a p5.Graphics object.
    */
-  render(p, relativeTime) {
+  render(p) {
     p.push();
     p.translate(this.properties.x, this.properties.y);
     p.rotate(this.properties.rotation);
@@ -1436,15 +1455,50 @@ class AudioClip extends ClipBase {
   /**
    * Audio clips do not have a visual representation, so this method is a no-op.
    * It exists to fulfill the ClipBase interface.
-   * @param {p5} p - The p5.js instance.
-   * @param {number} relativeTime - The current time within the clip's duration.
+   * It exists to fulfill the ClipBase interface.
    */
-  render(p, relativeTime) {
+  render() {
     // Audio clips are not rendered visually.
   }
 }
 
 const ALLOWED_PROTOCOLS = ['http:', 'https:', 'blob:', 'data:'];
+
+/**
+ * @class Hotspot
+ * @description Represents a clickable area on a video clip.
+ * This is a helper class used internally by VideoClip.
+ */
+class Hotspot {
+  constructor(options = {}) {
+    this.x = options.x || 0; // Center x, relative to the video's center
+    this.y = options.y || 0; // Center y, relative to the video's center
+    this.width = options.width || 100;
+    this.height = options.height || 50;
+    this.start = options.start || 0; // Start time relative to the video clip's start, in ms
+    this.duration = options.duration || 1000; // Duration in ms
+    this.onClick = options.onClick || (() => {});
+  }
+
+  /**
+   * Checks if a point is inside the hotspot's bounds.
+   * The coordinates are relative to the video clip's center.
+   * @param {number} px - The x-coordinate of the point to check.
+   * @param {number} py - The y-coordinate of the point to check.
+   * @returns {boolean} True if the point is inside the hotspot.
+   */
+  isHit(px, py) {
+    // Assuming imageMode(CENTER)
+    const halfW = this.width / 2;
+    const halfH = this.height / 2;
+    return (
+      px >= this.x - halfW &&
+      px <= this.x + halfW &&
+      py >= this.y - halfH &&
+      py <= this.y + halfH
+    );
+  }
+}
 
 /**
  * Represents a video clip that can be placed on the timeline.
@@ -1481,12 +1535,23 @@ class VideoClip extends ClipBase {
 
     this.videoSrc = videoSrc;
     this.isPlaying = false;
+    this.videoElement = null; // Element will be created lazily
 
     // Add width and height to the animatable properties, with defaults.
     this.properties.width = options.width || 1920; // Default to common video width
     this.properties.height = options.height || 1080; // Default to common video height
 
-    // Create the HTML5 video element
+    this.hotspots = [];
+  }
+
+  /**
+   * @private
+   * Creates the video element and sets its initial properties.
+   * This is called lazily to avoid creating DOM elements unnecessarily.
+   */
+  _initElement() {
+    if (this.videoElement) return;
+
     this.videoElement = document.createElement('video');
     this.videoElement.src = this.videoSrc;
     this.videoElement.preload = 'auto';
@@ -1500,33 +1565,22 @@ class VideoClip extends ClipBase {
    * @param {number} relativeTime - The current time within the clip's duration, in milliseconds.
    */
   update(p, relativeTime) {
+    this._initElement(); // Ensure element exists
     super.update(p, relativeTime);
 
     // Synchronize video time with timeline time.
-    // We convert relativeTime from ms to seconds for the video element.
     const targetTime = relativeTime / 1000;
-
-    // Add a small tolerance to prevent stuttering from minor seeks during normal playback.
     const timeDifference = Math.abs(this.videoElement.currentTime - targetTime);
-
-    // Only seek if the difference is significant (e.g., > 50ms) or if the video is paused.
-    // This handles both timeline scrubbing and initial play commands.
     if (timeDifference > 0.05 || this.videoElement.paused) {
       this.videoElement.currentTime = targetTime;
     }
 
-    // Determine if the clip should be considered active based on its time.
     const isActive = relativeTime >= 0 && relativeTime < this.duration;
-
-    // Play or pause the video based on the active state
     if (isActive && !this.isPlaying) {
-      // Using a flag `isPlaying` prevents calling play() on every frame.
       const playPromise = this.videoElement.play();
       if (playPromise !== undefined) {
-        playPromise.catch((error) => {
-          // Autoplay was prevented. For now, we silently ignore,
-          // but a future implementation could use the ErrorHandler.
-          // ErrorHandler.warning(`Video for ${this.videoSrc} failed to play: ${error.message}`);
+        playPromise.catch(() => {
+          // Autoplay was prevented.
         });
       }
       this.isPlaying = true;
@@ -1538,28 +1592,212 @@ class VideoClip extends ClipBase {
 
   /**
    * Renders the video frame to the p5.js canvas if the clip is active.
-   * This method is called by the timeline's render loop.
    * @param {p5} p - The p5.js instance.
    * @param {number} relativeTime - The current time within the clip's duration.
    */
+  /**
+   * Adds a clickable hotspot to the video clip.
+   * @param {object} options - Configuration for the hotspot.
+   * @param {number} options.x - Center x-coordinate, relative to the video's center.
+   * @param {number} options.y - Center y-coordinate, relative to the video's center.
+   * @param {number} options.width - Width of the hotspot.
+   * @param {number} options.height - Height of the hotspot.
+   * @param {number} options.start - Start time, relative to the clip's start, in ms.
+   * @param {number} options.duration - Duration of the hotspot, in ms.
+   * @param {Function} options.onClick - The callback function to execute when clicked.
+   * @returns {this} The current VideoClip instance for chaining.
+   */
+  addHotspot(options = {}) {
+    this.hotspots.push(new Hotspot(options));
+    return this;
+  }
+
+  /**
+   * Checks if a click at the given canvas coordinates hits any active hotspot.
+   * @internal
+   * @param {p5} p - The p5 instance.
+   * @param {number} canvasX - The mouseX coordinate on the canvas.
+   * @param {number} canvasY - The mouseY coordinate on the canvas.
+   * @param {number} relativeTime - The current time within the clip's duration.
+   */
+  checkClick(p, canvasX, canvasY, relativeTime) {
+    // This simple implementation does not account for parent clip rotation or scale.
+    // It assumes the video clip is only translated.
+    const clipCanvasX = this.properties.x;
+    const clipCanvasY = this.properties.y;
+
+    // Convert canvas coordinates to be relative to the clip's center.
+    const relativeX = canvasX - clipCanvasX;
+    const relativeY = canvasY - clipCanvasY;
+
+    for (const hotspot of this.hotspots) {
+      const isTimeActive =
+        relativeTime >= hotspot.start &&
+        relativeTime < hotspot.start + hotspot.duration;
+
+      if (isTimeActive && hotspot.isHit(relativeX, relativeY)) {
+        hotspot.onClick();
+        // Stop after the first hit to prevent multiple triggers.
+        return true;
+      }
+    }
+    return false;
+  }
+
   render(p, relativeTime) {
-    // Let the base class handle transformations (translation, rotation, scale)
+    this._initElement(); // Ensure element exists
     super.render(p, relativeTime);
 
-    // HAVE_FUTURE_DATA (3) or HAVE_ENOUGH_DATA (4) are good states to check for readiness.
-    if (this.videoElement.readyState >= 3) {
+    if (this.videoElement && this.videoElement.readyState >= 3) {
       p.imageMode(p.CENTER);
       p.image(
         this.videoElement,
-        0, // x position is handled by super.render() translate
-        0, // y position is handled by super.render() translate
+        0,
+        0,
         this.properties.width,
         this.properties.height
       );
     }
 
-    // Restore the drawing context
+    // --- Render Hotspots (for debugging/visualization) ---
+    // Make sure we are in a p5.js environment with drawing capabilities
+    if (p.rectMode) {
+      p.push();
+      p.rectMode(p.CENTER);
+      p.stroke('rgba(255, 0, 0, 0.75)');
+      p.strokeWeight(2);
+      p.noFill();
+      for (const hotspot of this.hotspots) {
+        const isTimeActive =
+          relativeTime >= hotspot.start &&
+          relativeTime < hotspot.start + hotspot.duration;
+        if (isTimeActive) {
+          p.rect(hotspot.x, hotspot.y, hotspot.width, hotspot.height);
+        }
+      }
+      p.pop();
+    }
+    // --- End Hotspot Rendering ---
+
     p.pop();
+  }
+}
+
+/**
+ * @class SlideShowClip
+ * @extends ClipBase
+ * @description A special clip type that acts as a container for a sequence of slides.
+ * Each slide can contain its own set of clips. Navigation between slides is controlled
+ * by `next()` and `previous()` methods, making it suitable for presentations.
+ */
+class SlideShowClip extends ClipBase {
+  /**
+   * @constructor
+   * @param {object} [options={}] - The configuration object for the clip.
+   */
+  constructor(options = {}) {
+    super(options);
+    this.slides = [];
+    this.currentSlideIndex = 0;
+    this.slideActivationTime = 0;
+  }
+
+  /**
+   * Adds a new slide to the slideshow. A slide is an array of clips.
+   * @param {ClipBase[]} [clips=[]] - An array of clips that make up this slide.
+   * @returns {this} The current SlideShowClip instance for chaining.
+   * @example
+   * const slideShow = editor.createSlideShowClip({ duration: 30 });
+   * const slide1Clips = [
+   *   editor.createTextClip('Slide 1', { properties: { x: 100, y: 100 } }),
+   * ];
+   * slideShow.addSlide(slide1Clips);
+   */
+  addSlide(clips = []) {
+    this.slides.push(clips);
+    if (this.timeline) {
+      clips.forEach((clip) => {
+        clip.timeline = this.timeline;
+      });
+    }
+    return this;
+  }
+
+  /**
+   * Activates a slide at a specific index and resets its internal animation clock.
+   * @private
+   * @param {number} index - The index of the slide to activate.
+   */
+  _activateSlide(index) {
+    this.currentSlideIndex = index;
+    if (this.timeline) {
+      // Record the time (relative to the slideshow's start) that this slide became active.
+      // This allows animations within the slide to play relative to this moment.
+      this.slideActivationTime = this.timeline.time - this.start;
+    }
+  }
+
+  /**
+   * Navigates to the next slide.
+   */
+  next() {
+    if (this.currentSlideIndex < this.slides.length - 1) {
+      this._activateSlide(this.currentSlideIndex + 1);
+    }
+  }
+
+  /**
+   * Navigates to the previous slide.
+   */
+  previous() {
+    if (this.currentSlideIndex > 0) {
+      this._activateSlide(this.currentSlideIndex - 1);
+    }
+  }
+
+  /**
+   * Updates the properties of the slideshow container and the clips of the active slide.
+   * @internal
+   * @param {p5} p - The p5.js instance.
+   * @param {number} relativeTime - The current time within the slideshow's duration.
+   */
+  update(p, relativeTime) {
+    super.update(p, relativeTime); // Update container properties (e.g., position, scale)
+
+    const activeSlide = this.slides[this.currentSlideIndex];
+    if (activeSlide) {
+      const timeSinceSlideActivation = relativeTime - this.slideActivationTime;
+      activeSlide.forEach((clip) => {
+        // Update each clip on the current slide with a time relative to when the slide was shown.
+        clip.update(p, timeSinceSlideActivation);
+      });
+    }
+  }
+
+  /**
+   * Renders the currently active slide and its clips.
+   * This method is called by the RenderEngine.
+   * @internal
+   * @param {p5} p - The p5.js instance or a p5.Graphics object.
+   */
+  render(p) {
+    // First, apply the transformations of the slideshow container itself.
+    // super.render() handles the p.push() and transform operations.
+    super.render(p);
+
+    const activeSlide = this.slides[this.currentSlideIndex];
+    if (activeSlide) {
+      // Sort clips by layer, just like the main render engine.
+      const sortedClips = [...activeSlide].sort((a, b) => a.layer - b.layer);
+
+      // Render each clip within the current slide.
+      // The RenderEngine normally handles the push/pop for each clip. Since we are
+      // rendering these "sub-clips" manually, we must do it here.
+      sortedClips.forEach((clip) => {
+        clip.render(p); // This will do its own p.push() and transformations.
+        p.pop(); // We must provide the matching pop.
+      });
+    }
   }
 }
 
@@ -1587,7 +1825,7 @@ class EffectBase {
    * @param {p5} p - The p5.js instance.
    * @param {number} relativeTime - The current time within the clip's duration, in milliseconds.
    */
-  apply(clip, p, relativeTime) {
+  apply(_clip, _p, _relativeTime) {
     throw new Error('The "apply()" method must be implemented by a subclass.');
   }
 }
@@ -1599,44 +1837,39 @@ class EffectBase {
  * and managers into a simplified and easy-to-use API.
  *
  * @example
- * let editor = new VideoEditor();
- * let myFont;
- *
- * function preload() {
- *   myFont = loadFont('assets/font.otf');
- * }
+ * // In your p5.js sketch:
+ * let editor;
  *
  * function setup() {
  *   createCanvas(1280, 720);
- *   editor.createVideoClip('assets/background.mp4', { start: 0, duration: 10 });
- *   const title = editor.createTextClip("Hello World", { start: 1, duration: 5 });
- *   title.addKeyframe('x', 0, 100);
- *   title.addKeyframe('x', 5000, 500);
+ *   editor = new VideoEditor(p5.instance, { canvas: canvas.elt });
+ *
+ *   // Create clips and add keyframes using the ergonomic API
+ *   editor.createTextClip("Hello World", { start: 1, duration: 5 })
+ *     .addKeyframe('x', 0, 100)
+ *     .addKeyframe('x', 5000, 500);
  * }
  *
- * // The draw loop needs to be async if using shaders, but it's good practice
- * // to make it async anyway to handle any future async rendering tasks.
  * async function draw() {
  *   background(0);
  *   editor.update(p5.instance);
- *   await editor.render(p5.instance);
+ *   await editor.render();
  * }
  */
 class VideoEditor {
   /**
    * @static
-   * @property {ErrorHandler} ErrorHandler - Exposes the static ErrorHandler class for advanced use cases,
-   * such as configuring global error handling strategies.
+   * @property {ErrorHandler} ErrorHandler - Exposes the static ErrorHandler class for advanced use cases.
    */
   static ErrorHandler = ErrorHandler;
 
   /**
    * @constructor
-   * @param {object} [options={}] - Configuration options for the editor.
    * @param {p5} p - The p5.js instance. Required for rendering.
-   * @param {object} [options.performance] - Performance-related settings passed to the PerformanceManager.
+   * @param {object} [options={}] - Configuration options for the editor.
    * @param {HTMLCanvasElement} [options.canvas=null] - The p5.js canvas element. Required for exporting.
    * @param {HTMLElement} [options.uiContainer=null] - The container to append the UI controls to.
+   * @param {object} [options.performance] - Performance-related settings passed to the PerformanceManager.
    */
   constructor(p, { canvas = null, uiContainer = null, ...options } = {}) {
     if (!p) {
@@ -1662,7 +1895,9 @@ class VideoEditor {
    * Creates a video clip and adds it to the timeline.
    * @param {string} videoSrc - The source URL of the video file.
    * @param {object} [options={}] - Configuration options for the VideoClip.
-   * @returns {VideoClip} The newly created VideoClip instance.
+   * @returns {VideoClip} The newly created VideoClip instance for chaining.
+   * @example
+   * editor.createVideoClip('./assets/my-video.mp4', { start: 0, duration: 10 });
    */
   createVideoClip(videoSrc, options = {}) {
     const clip = new VideoClip(videoSrc, options);
@@ -1671,10 +1906,30 @@ class VideoEditor {
   }
 
   /**
+   * Creates a slideshow clip and adds it to the timeline.
+   * This clip can contain other clips and be controlled with next() and previous().
+   * @param {object} [options={}] - Configuration options for the SlideShowClip.
+   * @returns {SlideShowClip} The newly created SlideShowClip instance for chaining.
+   * @example
+   * const slideshow = editor.createSlideShowClip({ duration: 20 });
+   * slideshow.addSlide([ editor.createTextClip('First Slide') ]);
+   * slideshow.addSlide([ editor.createTextClip('Second Slide') ]);
+   */
+  createSlideShowClip(options = {}) {
+    const clip = new SlideShowClip(options);
+    this.timeline.addClip(clip);
+    return clip;
+  }
+
+  /**
    * Creates a text clip and adds it to the timeline.
    * @param {string} text - The text content of the clip.
    * @param {object} [options={}] - Configuration options for the TextClip.
-   * @returns {TextClip} The newly created TextClip instance.
+   * @returns {TextClip} The newly created TextClip instance for chaining.
+   * @example
+   * editor.createTextClip('Hello', { start: 1, duration: 3, properties: { y: 100 } })
+   *   .addKeyframe('x', 0, 50)
+   *   .addKeyframe('x', 3000, 250);
    */
   createTextClip(text, options = {}) {
     const clip = new TextClip(text, options);
@@ -1686,7 +1941,9 @@ class VideoEditor {
    * Creates a shape clip and adds it to the timeline.
    * @param {string} shapeType - The type of shape to create (e.g., 'rect', 'circle').
    * @param {object} [options={}] - Configuration options for the ShapeClip.
-   * @returns {ShapeClip} The newly created ShapeClip instance.
+   * @returns {ShapeClip} The newly created ShapeClip instance for chaining.
+   * @example
+   * editor.createShapeClip('rect', { duration: 5, properties: { width: 100, fill: 'red' } });
    */
   createShapeClip(shapeType, options = {}) {
     const clip = new ShapeClip(shapeType, options);
@@ -1696,9 +1953,13 @@ class VideoEditor {
 
   /**
    * Creates an image clip and adds it to the timeline.
-   * @param {p5.Image|string} image - The p5.Image object or a URL to the image.
+   * @param {p5.Image} image - The preloaded p5.Image object.
    * @param {object} [options={}] - Configuration options for the ImageClip.
-   * @returns {ImageClip} The newly created ImageClip instance.
+   * @returns {ImageClip} The newly created ImageClip instance for chaining.
+   * @example
+   * // In preload: myImage = p.loadImage('./assets/logo.png');
+   * // In setup:
+   * editor.createImageClip(myImage, { duration: 4 });
    */
   createImageClip(image, options = {}) {
     const clip = new ImageClip(image, options);
@@ -1708,9 +1969,13 @@ class VideoEditor {
 
   /**
    * Creates an audio clip and adds it to the timeline.
-   * @param {p5.SoundFile|string} soundFile - The p5.SoundFile object or a URL to the audio file.
+   * @param {p5.SoundFile} soundFile - The preloaded p5.SoundFile object.
    * @param {object} [options={}] - Configuration options for the AudioClip.
-   * @returns {AudioClip} The newly created AudioClip instance.
+   * @returns {AudioClip} The newly created AudioClip instance for chaining.
+   * @example
+   * // In preload: mySound = p.loadSound('./assets/music.mp3');
+   * // In setup:
+   * editor.createAudioClip(mySound, { start: 0, duration: 15 });
    */
   createAudioClip(soundFile, options = {}) {
     const clip = new AudioClip(soundFile, options);
@@ -1719,9 +1984,8 @@ class VideoEditor {
   }
 
   /**
-   * Caches an asset manually in the MemoryManager. This is useful for preloading
-   * assets before they are needed to ensure smooth playback.
-   * @param {string} key - The unique key to store the asset under. This key is often the asset's URL or a custom identifier.
+   * Caches an asset manually in the MemoryManager.
+   * @param {string} key - The unique key to store the asset under.
    * @param {*} asset - The asset to cache (e.g., p5.Image, p5.SoundFile).
    */
   cacheAsset(key, asset) {
@@ -1729,9 +1993,8 @@ class VideoEditor {
   }
 
   /**
-   * Updates the state of the timeline and all active clips. This method should be
-   * called in the `draw` loop of your p5.js sketch.
-   * @param {p5} p - The p5.js instance, used to access timing variables like deltaTime.
+   * Updates the state of the timeline and all active clips.
+   * @param {p5} p - The p5.js instance.
    */
   update(p) {
     this.performanceManager.monitor(p);
@@ -1745,17 +2008,39 @@ class VideoEditor {
   }
 
   /**
-   * Renders the current state of the timeline to the canvas. This method should be
-   * called in the `draw` loop of your p5.js sketch, after `update`.
-   * @param {p5} p - The p5.js instance, used for drawing operations.
+   * Renders the current state of the timeline to the canvas.
    */
-  async render(p) {
-    await this.timeline.render(p);
+  async render() {
+    await this.timeline.render();
   }
 
   /**
-   * Displays a user-friendly error message. In a future implementation, this could
-   * render an overlay on the canvas for better visibility.
+   * Handles mouse press events to check for interactions like hotspot clicks.
+   * This method should be called from the p5.js `mousePressed()` function.
+   * @param {p5} p - The p5.js instance, which provides mouseX and mouseY.
+   * @example
+   * function mousePressed() {
+   *   editor.handleMousePressed(p);
+   * }
+   */
+  handleMousePressed(p) {
+    const activeClips = this.timeline.getActiveClips();
+    // Iterate in reverse order so we check the topmost clips first.
+    for (let i = activeClips.length - 1; i >= 0; i--) {
+      const clip = activeClips[i];
+      if (clip instanceof VideoClip) {
+        const relativeTime = this.timeline.time - clip.start;
+        const wasClicked = clip.checkClick(p, p.mouseX, p.mouseY, relativeTime);
+        if (wasClicked) {
+          // Stop after the first clip that handles the click.
+          break;
+        }
+      }
+    }
+  }
+
+  /**
+   * Displays a user-friendly error message.
    * @param {Error} error - The error object to display.
    */
   showUserFriendlyError(error) {
@@ -1763,19 +2048,5 @@ class VideoEditor {
   }
 }
 
-export {
-  AudioClip,
-  ClipBase,
-  EffectBase,
-  ErrorHandler,
-  ImageClip,
-  MemoryManager,
-  PerformanceManager,
-  PlaybackController,
-  ShapeClip,
-  TextClip,
-  Timeline,
-  VideoClip,
-  VideoEditor,
-};
+export { AudioClip, ClipBase, EffectBase, ErrorHandler, ImageClip, MemoryManager, PerformanceManager, PlaybackController, ShapeClip, SlideShowClip, TextClip, Timeline, VideoClip, VideoEditor };
 //# sourceMappingURL=p5.videoeditor.esm.js.map
