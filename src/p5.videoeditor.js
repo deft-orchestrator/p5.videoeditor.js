@@ -93,6 +93,18 @@ class VideoEditor {
   }
 
   /**
+   * Registers a plugin with the editor. This allows for extending the editor's
+   * capabilities with custom effects, transitions, or other features.
+   * @param {object} plugin - The plugin to register. It must have an `onLoad` method.
+   * @example
+   * import MyWipeTransition from './my-wipe-transition.js';
+   * editor.use(MyWipeTransition);
+   */
+  use(plugin) {
+    this.timeline.use(plugin);
+  }
+
+  /**
    * Exports the timeline animation as a GIF file.
    * This process is resource-intensive and may take some time.
    * @param {object} [options={}] - Configuration options for the GIF export.

@@ -22,8 +22,8 @@
 
 - [x] **[PLATFORM] Bangun Ekspor MP4 dengan Audio:** Fitur unggulan untuk sepenuhnya memecahkan masalah inti pengguna. Tujuannya adalah untuk menjadi solusi de-facto untuk rendering video p5.js. _(Pencapaian: Fungsionalitas audio sekarang terintegrasi penuh.)_
 - [~] **[UI] Kembangkan UI Timeline Visual & Editor Kurva:** Secara drastis meningkatkan kegunaan dan memperluas audiens ke mereka yang kurang nyaman dengan pendekatan khusus kode. _(Pencapaian: UI timeline interaktif dasar (mencari, menyeret, mengubah ukuran) telah diimplementasikan.)_
-- [ ] **[ARCHITECTURE] Terapkan Sistem Plugin untuk Efek:** Aktifkan kontribusi komunitas dan ciptakan ekosistem yang dapat dipertahankan di sekitar pustaka.
-- [ ] **[PERFORMANCE] Terapkan Render yang Dipercepat GPU (WebGL):** Pastikan kinerja untuk animasi yang kompleks dan menarik bagi pengguna tingkat lanjut.
+- [x] **[ARCHITECTURE] Terapkan Sistem Plugin untuk Efek:** Aktifkan kontribusi komunitas dan ciptakan ekosistem yang dapat dipertahankan di sekitar pustaka.
+- [x] **[PERFORMANCE] Terapkan Render yang Dipercepat GPU (WebGL):** Pastikan kinerja untuk animasi yang kompleks dan menarik bagi pengguna tingkat lanjut.
 
 **Definisi Selesai untuk Proyek Strategis:**
 

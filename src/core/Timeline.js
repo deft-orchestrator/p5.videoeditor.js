@@ -1,6 +1,7 @@
 import { PluginManager } from './PluginManager.js';
 import RenderEngine from './RenderEngine.js';
 import ErrorHandler from '../utils/ErrorHandler.js';
+import { builtInPlugins } from '../plugins/index.js';
 
 /**
  * @class Timeline
@@ -31,18 +32,25 @@ class Timeline {
     this.pluginManager = new PluginManager();
     this.transitionTypes = new Map();
     this.effectTypes = new Map();
-    this._pluginsLoaded = false;
+
+    this._loadBuiltInPlugins();
   }
 
   /**
-   * Registers a plugin with the timeline.
+   * Registers a plugin with the timeline and immediately loads it.
    * @param {object} plugin - The plugin to register.
    * @example
    * import MyCustomPlugin from './plugins/my-plugin.js';
-   * editor.timeline.use(new MyCustomPlugin());
+   * editor.use(MyCustomPlugin); // Pass the plugin object itself
    */
   use(plugin) {
     this.pluginManager.register(plugin);
+    try {
+      // Immediately load the plugin so its effects/transitions are available
+      plugin.onLoad(this);
+    } catch (error) {
+      ErrorHandler.critical(`Error loading plugin: ${plugin.name}`, error);
+    }
   }
 
   /**
@@ -186,11 +194,6 @@ class Timeline {
    * @internal
    */
   update(p) {
-    if (!this._pluginsLoaded) {
-      this._loadPlugins();
-      this._pluginsLoaded = true;
-    }
-
     if (this.isPlaying) {
       this.time += p.deltaTime;
       if (this.time >= this.duration) {
@@ -247,14 +250,18 @@ class Timeline {
 
   /**
    * @private
-   * Loads all registered plugins by calling their onLoad methods.
+   * Loads all built-in plugins. This is called once on initialization.
    */
-  _loadPlugins() {
-    for (const plugin of this.pluginManager.plugins) {
+  _loadBuiltInPlugins() {
+    for (const plugin of builtInPlugins) {
+      this.pluginManager.register(plugin);
       try {
         plugin.onLoad(this);
       } catch (error) {
-        ErrorHandler.critical(`Error loading plugin: ${plugin.name}`, error);
+        ErrorHandler.critical(
+          `Error loading built-in plugin: ${plugin.name}`,
+          error
+        );
       }
     }
   }
