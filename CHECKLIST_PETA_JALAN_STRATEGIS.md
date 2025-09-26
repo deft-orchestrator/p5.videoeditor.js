@@ -17,7 +17,7 @@
 ## ⛰️ Proyek Besar (Timeline: 2-6 bulan)
 **Kriteria:** Dampak tinggi, upaya tinggi, diferensiasi strategis
 
-- [ ] **[PLATFORM] Bangun Ekspor MP4 dengan Audio:** Fitur unggulan untuk sepenuhnya memecahkan masalah inti pengguna. Tujuannya adalah untuk menjadi solusi de-facto untuk rendering video p5.js.
+- [~] **[PLATFORM] Bangun Ekspor MP4 dengan Audio:** Fitur unggulan untuk sepenuhnya memecahkan masalah inti pengguna. Tujuannya adalah untuk menjadi solusi de-facto untuk rendering video p5.js. *(Pencapaian: Ekspor MP4 sisi klien tanpa audio telah diimplementasikan.)*
 - [ ] **[UI] Kembangkan UI Timeline Visual & Editor Kurva:** Secara drastis meningkatkan kegunaan dan memperluas audiens ke mereka yang kurang nyaman dengan pendekatan khusus kode.
 - [ ] **[ARCHITECTURE] Terapkan Sistem Plugin untuk Efek:** Aktifkan kontribusi komunitas dan ciptakan ekosistem yang dapat dipertahankan di sekitar pustaka.
 - [ ] **[PERFORMANCE] Terapkan Render yang Dipercepat GPU (WebGL):** Pastikan kinerja untuk animasi yang kompleks dan menarik bagi pengguna tingkat lanjut.
