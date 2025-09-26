@@ -14,22 +14,22 @@ This document outlines the long-term vision, architecture, and development roadm
 
 ### **Primary Focus**
 
--   Timeline & playback system with performance optimization
--   Clip/layer management (Text, Shape, Image, Audio, Group)
--   Keyframe animation with various easing functions
--   Effect system (static & dynamic effects) with GPU acceleration
--   Masking, parenting, and grouping
--   Plugin architecture for extensibility
--   Real-time preview and visual feedback system
+- Timeline & playback system with performance optimization
+- Clip/layer management (Text, Shape, Image, Audio, Group)
+- Keyframe animation with various easing functions
+- Effect system (static & dynamic effects) with GPU acceleration
+- Masking, parenting, and grouping
+- Plugin architecture for extensibility
+- Real-time preview and visual feedback system
 
 ### **Secondary Focus**
 
--   Scene import/export (JSON format)
--   Integration with popular libraries (GSAP, Three.js, ml5.js, Tone.js)
--   A comprehensive testing suite
--   Documentation & examples
--   Community template marketplace
--   Visual editing tools and curve editor
+- Scene import/export (JSON format)
+- Integration with popular libraries (GSAP, Three.js, ml5.js, Tone.js)
+- A comprehensive testing suite
+- Documentation & examples
+- Community template marketplace
+- Visual editing tools and curve editor
 
 ---
 
@@ -72,47 +72,47 @@ p5.videoeditor.js/
 
 ### **1. Timeline System**
 
--   Frame-accurate playback control
--   Variable frame rates with adaptive performance
--   Loop/bounce playback modes
--   Timeline scrubbing and seeking
--   Batch operations for multiple clip manipulation
--   Nested timeline support
--   Real-time performance monitoring
+- Frame-accurate playback control
+- Variable frame rates with adaptive performance
+- Loop/bounce playback modes
+- Timeline scrubbing and seeking
+- Batch operations for multiple clip manipulation
+- Nested timeline support
+- Real-time performance monitoring
 
 ### **2. Clip Management**
 
--   Multiple clip types (Text, Shape, Image, Audio, Group, Video, Particle)
--   Layer ordering and visibility
--   Duration and timing control
--   Transform properties (position, rotation, scale)
--   Clip presets and templates
--   Smart asset preloading
--   Memory-efficient clip recycling
+- Multiple clip types (Text, Shape, Image, Audio, Group, Video, Particle)
+- Layer ordering and visibility
+- Duration and timing control
+- Transform properties (position, rotation, scale)
+- Clip presets and templates
+- Smart asset preloading
+- Memory-efficient clip recycling
 
 ### **3. Keyframe Animation**
 
--   Multi-property keyframes
--   Comprehensive easing functions
--   Bézier curve interpolation
--   Visual curve editor interface
--   Motion path editing
+- Multi-property keyframes
+- Comprehensive easing functions
+- Bézier curve interpolation
+- Visual curve editor interface
+- Motion path editing
 
 ### **4. Effect System**
 
--   Static and dynamic effects (fadeIn, wiggle, etc.)
--   Chaining multiple effects per clip
--   Custom effect creation API
--   GPU-accelerated effects for performance
--   Audio-reactive effects
+- Static and dynamic effects (fadeIn, wiggle, etc.)
+- Chaining multiple effects per clip
+- Custom effect creation API
+- GPU-accelerated effects for performance
+- Audio-reactive effects
 
 ### **5. Advanced Features**
 
--   Visual masking
--   Parent-child clip relationships
--   Grouping and pre-composition
--   Plugin architecture for extensions
--   Export to multiple formats (MP4, GIF, WebM)
+- Visual masking
+- Parent-child clip relationships
+- Grouping and pre-composition
+- Plugin architecture for extensions
+- Export to multiple formats (MP4, GIF, WebM)
 
 ---
 
@@ -172,31 +172,34 @@ p5.VideoEditor.registerEffect('customGlow', {
 
 ### **Phase 1: Core Foundation + Performance** (In Progress)
 
--   [x] Timeline & playback system
--   [x] Basic clip types (Text, Shape, Image, Video, Audio)
--   [x] Keyframe system
--   [x] Basic effects system
--   [x] Testing framework
--   [ ] Performance optimization engine
--   [ ] Memory management system
--   [x] Error handling & validation
+- [x] Timeline & playback system
+- [x] Basic clip types (Text, Shape, Image, Video, Audio)
+- [x] Keyframe system
+- [x] Basic effects system
+- [x] Testing framework
+- [ ] Performance optimization engine
+- [ ] Memory management system
+- [x] Error handling & validation
 
 ### **Phase 2: Visual Tools + Advanced Features** (Planned)
 
--   [ ] Visual curve editor and timeline UI
--   [ ] GPU-accelerated effects
--   [ ] Audio-reactive effects
--   [ ] Advanced masking tools
+- [ ] Visual curve editor and timeline UI
+- [ ] GPU-accelerated effects
+- [ ] Audio-reactive effects
+- [ ] Advanced masking tools
 
 ### **Phase 3: Export + Integration** (Planned)
 
--   [ ] Multi-format export (MP4, GIF, WebM)
--   [ ] Scene import/export (JSON)
--   [ ] Integration adapters (GSAP, Three.js)
+- [ ] Multi-format export (MP4, GIF, WebM)
+- [ ] Scene import/export (JSON)
+- [ ] Integration adapters (GSAP, Three.js)
 
 ### **Phase 4: Community + Ecosystem** (Future)
 
--   [ ] Community plugin marketplace
--   [ ] Collaborative editing features
--   [ ] Documentation website with interactive examples
+- [ ] Community plugin marketplace
+- [ ] Collaborative editing features
+- [ ] Documentation website with interactive examples
+
+```
+
 ```

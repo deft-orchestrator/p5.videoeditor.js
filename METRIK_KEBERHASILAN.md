@@ -44,11 +44,11 @@ Dokumen ini menguraikan metrik spesifik dan metode untuk melacak keberhasilan fi
 
 ## Dasbor Pelacakan (Contoh)
 
-| Metrik | Target | Saat Ini | Catatan |
-|---|---|---|---|
-| **Umpan Balik Kualitatif** | 15 Contoh | 0 | Pelacakan dimulai setelah pengumuman |
-| **Unduhan NPM Bulanan** | +25% | [Baseline TBD] | |
-| **Bintang GitHub** | 500+ | [Jumlah Saat Ini TBD] | |
-| **Proyek Ekspor GIF** | 20 | 0 | Pencarian manual akan dilakukan setiap dua minggu |
-| **Suka Tweet Pengumuman** | 100+ | 0 | |
-| **Balasan Forum** | 5+ | 0 | |
+| Metrik                     | Target    | Saat Ini              | Catatan                                           |
+| -------------------------- | --------- | --------------------- | ------------------------------------------------- |
+| **Umpan Balik Kualitatif** | 15 Contoh | 0                     | Pelacakan dimulai setelah pengumuman              |
+| **Unduhan NPM Bulanan**    | +25%      | [Baseline TBD]        |                                                   |
+| **Bintang GitHub**         | 500+      | [Jumlah Saat Ini TBD] |                                                   |
+| **Proyek Ekspor GIF**      | 20        | 0                     | Pencarian manual akan dilakukan setiap dua minggu |
+| **Suka Tweet Pengumuman**  | 100+      | 0                     |                                                   |
+| **Balasan Forum**          | 5+        | 0                     |                                                   |

@@ -1,0 +1,12 @@
+/* Base container for the entire timeline UI */
+.p5ve-timeline-ui {
+  position: relative;
+  background-color: #f0f0f0;
+  border: 1px solid #ccc;
+  overflow: hidden;
+  user-select: none; /* Prevents text selection during drag operations */
+  font-family: sans-serif;
+  font-size: 12px;
+}
+
+/* Add styles for other UI elements like clips, ruler, playhead as they are developed */

@@ -41,6 +41,7 @@
     "@rollup/plugin-node-resolve": "^16.0.1",
     "@rollup/plugin-terser": "^0.4.4",
     "eslint": "^9.35.0",
+    "eslint-config-p5js": "^1.1.0",
     "eslint-config-prettier": "^10.1.8",
     "eslint-plugin-jest": "^29.0.1",
     "gif.js": "^0.2.0",

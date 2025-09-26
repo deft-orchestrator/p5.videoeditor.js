@@ -455,7 +455,11 @@ class Timeline {
     const { clipsToProcess, activeTransitions } = this._getFrameState(
       this.time
     );
-    await this.renderEngine.render(clipsToProcess, activeTransitions, this.time);
+    await this.renderEngine.render(
+      clipsToProcess,
+      activeTransitions,
+      this.time
+    );
   }
 
   /**
@@ -2145,5 +2149,20 @@ class VideoEditor {
   }
 }
 
-export { AudioClip, ClipBase, EffectBase, ErrorHandler, ImageClip, MemoryManager, PerformanceManager, PlaybackController, ShapeClip, SlideShowClip, TextClip, Timeline, VideoClip, VideoEditor };
+export {
+  AudioClip,
+  ClipBase,
+  EffectBase,
+  ErrorHandler,
+  ImageClip,
+  MemoryManager,
+  PerformanceManager,
+  PlaybackController,
+  ShapeClip,
+  SlideShowClip,
+  TextClip,
+  Timeline,
+  VideoClip,
+  VideoEditor,
+};
 //# sourceMappingURL=p5.videoeditor.esm.js.map

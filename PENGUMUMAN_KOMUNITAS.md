@@ -44,9 +44,9 @@ Pembaruan ini adalah langkah pertama menuju visi kami yang lebih besar: untuk me
 **Kami Butuh Bantuan Anda!**
 Ini baru permulaan. Coba fitur-fitur baru ini, lihat contoh-contoh kami, dan beri tahu kami pendapat Anda! Umpan balik Anda sangat berharga dan akan membentuk peta jalan kami ke depan.
 
-*   **Lihat Repositori GitHub:** [Link ke Repositori GitHub]
-*   **Jelajahi Contohnya:** [Link ke Galeri Contoh]
-*   **Laporkan Bug atau Minta Fitur:** [Link ke Halaman Issues]
+- **Lihat Repositori GitHub:** [Link ke Repositori GitHub]
+- **Jelajahi Contohnya:** [Link ke Galeri Contoh]
+- **Laporkan Bug atau Minta Fitur:** [Link ke Halaman Issues]
 
 Terima kasih atas dukungan Anda yang berkelanjutan. Kami tidak sabar untuk melihat apa yang Anda buat!
 

@@ -32,11 +32,16 @@ const sketch = (p) => {
       properties: { width: 500, height: 250, fill: '#ffafcc' },
     });
     // Animate the shape within the slide. The animation will restart each time the slide is shown.
-    slide2Bg.addKeyframe('rotation', 0, 0).addKeyframe('rotation', 3000, p.PI * 0.1);
-    const slide2Text = editor.createTextClip('Slides can contain animated elements.', {
-      duration: 99999,
-      properties: { fill: '#222' },
-    });
+    slide2Bg
+      .addKeyframe('rotation', 0, 0)
+      .addKeyframe('rotation', 3000, p.PI * 0.1);
+    const slide2Text = editor.createTextClip(
+      'Slides can contain animated elements.',
+      {
+        duration: 99999,
+        properties: { fill: '#222' },
+      }
+    );
     slideshow.addSlide([slide2Bg, slide2Text]);
 
     // --- Slide 3 ---
@@ -58,7 +63,11 @@ const sketch = (p) => {
     p.fill(150);
     p.textAlign(p.CENTER, p.CENTER);
     p.textSize(16);
-    p.text('Press LEFT or RIGHT arrow keys to navigate slides', p.width / 2, p.height - 30);
+    p.text(
+      'Press LEFT or RIGHT arrow keys to navigate slides',
+      p.width / 2,
+      p.height - 30
+    );
   };
 
   p.keyPressed = () => {

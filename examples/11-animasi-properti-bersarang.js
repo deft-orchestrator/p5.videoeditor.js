@@ -40,7 +40,11 @@ const sketch = (p) => {
         draw: (p, props) => {
           const { particle } = props;
           p.noStroke();
-          p.fill(particle.style.color.r, particle.style.color.g, particle.style.color.b);
+          p.fill(
+            particle.style.color.r,
+            particle.style.color.g,
+            particle.style.color.b
+          );
           p.circle(particle.pos.x, particle.pos.y, particle.style.size);
         },
       })

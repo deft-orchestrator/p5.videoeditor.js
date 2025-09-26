@@ -13,6 +13,7 @@ import SlideShowClip from './clips/SlideShowClip.js';
 import GIF from 'gif.js/src/GIF';
 import Exporter from './export/Exporter.js';
 import EffectBase from './effects/EffectBase.js';
+import TimelineUI from './ui/TimelineUI.js';
 
 /**
  * @class VideoEditor
@@ -61,6 +62,7 @@ class VideoEditor {
     {
       canvas = null,
       uiContainer = null,
+      timelineUiContainer = null,
       gifWorkerPath = './gif.worker.js', // Default path for the distributed worker file
       ...options
     } = {}
@@ -83,6 +85,11 @@ class VideoEditor {
     this.play = this.playbackController.play.bind(this.playbackController);
     this.pause = this.playbackController.pause.bind(this.playbackController);
     this.seek = this.playbackController.seek.bind(this.playbackController);
+
+    // Initialize the UI if a container is provided
+    if (timelineUiContainer) {
+      this.ui = new TimelineUI(this, timelineUiContainer);
+    }
   }
 
   /**

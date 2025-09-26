@@ -95,7 +95,10 @@ self.onmessage = async ({ data: { frames, frameRate, audioBlob } }) => {
     ffmpegCommand.push('output.mp4');
 
     self.postMessage({ type: 'log', data: 'Starting video encoding...' });
-    self.postMessage({ type: 'log', data: `Executing: ffmpeg ${ffmpegCommand.join(' ')}`});
+    self.postMessage({
+      type: 'log',
+      data: `Executing: ffmpeg ${ffmpegCommand.join(' ')}`,
+    });
 
     // Run the FFmpeg command to create the video.
     await ffmpeg.exec(ffmpegCommand);
