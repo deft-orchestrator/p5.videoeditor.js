@@ -1,5 +1,6 @@
 import { nodeResolve } from '@rollup/plugin-node-resolve';
 import terser from '@rollup/plugin-terser';
+import copy from 'rollup-plugin-copy';
 
 const output = (format, options = {}) => ({
   dir: 'dist',
@@ -22,5 +23,15 @@ export default {
     }),
     output('esm'),
   ],
-  plugins: [nodeResolve()],
+  plugins: [
+    nodeResolve(),
+    copy({
+      targets: [
+        {
+          src: 'node_modules/gif.js/dist/gif.worker.js',
+          dest: 'dist',
+        },
+      ],
+    }),
+  ],
 };
