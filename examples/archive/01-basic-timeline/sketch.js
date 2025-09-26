@@ -1,9 +1,5 @@
 // Import the necessary classes from the main library file
-import {
-  VideoEditor,
-  TextClip,
-  ShapeClip,
-} from '../../src/p5.videoeditor.js';
+import { VideoEditor, TextClip, ShapeClip } from '../../src/p5.videoeditor.js';
 
 let editor;
 

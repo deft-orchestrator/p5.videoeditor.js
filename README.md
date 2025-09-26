@@ -17,72 +17,72 @@ Then, copy and paste the code below into your `index.html` file and open it in y
 ```html
 <!DOCTYPE html>
 <html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>p5.videoeditor.js - Getting Started</title>
-  <!-- 1. Include p5.js -->
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.9.0/p5.min.js"></script>
-  <!-- 2. Include p5.videoeditor.js -->
-  <script src="p5.videoeditor.min.js"></script>
-  <style>
-    body {
-      margin: 0;
-      display: flex;
-      justify-content: center;
-      align-items: center;
-      height: 100vh;
-      background-color: #1a1a1a;
-    }
-  </style>
-</head>
-<body>
-  <script>
-    // sketch.js
-    let editor;
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>p5.videoeditor.js - Getting Started</title>
+    <!-- 1. Include p5.js -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.9.0/p5.min.js"></script>
+    <!-- 2. Include p5.videoeditor.js -->
+    <script src="p5.videoeditor.min.js"></script>
+    <style>
+      body {
+        margin: 0;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        height: 100vh;
+        background-color: #1a1a1a;
+      }
+    </style>
+  </head>
+  <body>
+    <script>
+      // sketch.js
+      let editor;
 
-    function setup() {
-      const canvas = createCanvas(640, 360);
+      function setup() {
+        const canvas = createCanvas(640, 360);
 
-      // 3. Create the main editor instance
-      //    The 'p5' instance is automatically detected in the global scope.
-      editor = new p5.VideoEditor({
-        duration: 5000, // 5-second timeline
-        canvas: canvas.elt,
-      });
+        // 3. Create the main editor instance
+        //    The 'p5' instance is automatically detected in the global scope.
+        editor = new p5.VideoEditor({
+          duration: 5000, // 5-second timeline
+          canvas: canvas.elt,
+        });
 
-      // 4. Create a text clip and add it to the timeline
-      editor
-        .createTextClip('Hello, World!', {
-          start: 500,       // Start at 0.5 seconds
-          duration: 4000,   // Last for 4 seconds
-          properties: {
-            x: width / 2,
-            y: height / 2,
-            fontSize: 48,
-            fill: '#f1faee',
-            textAlign: 'center',
-            textBaseline: 'middle',
-          },
-        })
-        // Add some animations to the text clip
-        .addKeyframe('scale', 0, 0)      // At clip time 0ms, scale is 0
-        .addKeyframe('scale', 500, 1.2)  // At 500ms, scale is 1.2
-        .addKeyframe('scale', 800, 1.0); // At 800ms, scale is 1.0
+        // 4. Create a text clip and add it to the timeline
+        editor
+          .createTextClip('Hello, World!', {
+            start: 500, // Start at 0.5 seconds
+            duration: 4000, // Last for 4 seconds
+            properties: {
+              x: width / 2,
+              y: height / 2,
+              fontSize: 48,
+              fill: '#f1faee',
+              textAlign: 'center',
+              textBaseline: 'middle',
+            },
+          })
+          // Add some animations to the text clip
+          .addKeyframe('scale', 0, 0) // At clip time 0ms, scale is 0
+          .addKeyframe('scale', 500, 1.2) // At 500ms, scale is 1.2
+          .addKeyframe('scale', 800, 1.0); // At 800ms, scale is 1.0
 
-      // 5. Start playback
-      editor.play();
-    }
+        // 5. Start playback
+        editor.play();
+      }
 
-    function draw() {
-      background(50);
+      function draw() {
+        background(50);
 
-      // 6. IMPORTANT: Update and render the editor on each frame
-      editor.update();
-      editor.render();
-    }
-  </script>
-</body>
+        // 6. IMPORTANT: Update and render the editor on each frame
+        editor.update();
+        editor.render();
+      }
+    </script>
+  </body>
 </html>
 ```
 

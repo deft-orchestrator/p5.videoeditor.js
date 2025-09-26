@@ -214,7 +214,11 @@ class Timeline {
     const { clipsToProcess, activeTransitions } = this._getFrameState(
       this.time
     );
-    await this.renderEngine.render(clipsToProcess, activeTransitions, this.time);
+    await this.renderEngine.render(
+      clipsToProcess,
+      activeTransitions,
+      this.time
+    );
   }
 
   /**
