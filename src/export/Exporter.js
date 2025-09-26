@@ -52,11 +52,12 @@ class Exporter {
   }
 
   /**
-   * Starts the export process by sending the captured frames to the worker.
+   * Starts the export process by sending the captured frames and optional audio to the worker.
    * @param {string[]} frames - An array of frame Data URLs.
    * @param {number} [frameRate=30] - The frame rate for the output video.
+   * @param {Blob|null} [audioBlob=null] - An optional Blob containing the audio data.
    */
-  export(frames, frameRate = 30) {
+  export(frames, frameRate = 30, audioBlob = null) {
     if (!frames || frames.length === 0) {
       const error = new Error('Cannot export without frames.');
       if (this.onError) {
@@ -67,8 +68,9 @@ class Exporter {
       return;
     }
 
-    if (this.onLog) this.onLog('Sending frames to export worker...');
-    this.worker.postMessage({ frames, frameRate });
+    if (this.onLog)
+      this.onLog('Sending frames and audio data to export worker...');
+    this.worker.postMessage({ frames, frameRate, audioBlob });
   }
 
   /**
