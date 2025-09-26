@@ -34,9 +34,9 @@ const load = async () => {
 
 /**
  * Handles incoming messages from the main thread.
- * The message should contain an array of frames as Data URLs.
+ * The message can contain frames, frameRate, and an optional audioBlob.
  */
-self.onmessage = async ({ data: { frames, frameRate } }) => {
+self.onmessage = async ({ data: { frames, frameRate, audioBlob } }) => {
   try {
     self.postMessage({
       type: 'log',
@@ -56,21 +56,49 @@ self.onmessage = async ({ data: { frames, frameRate } }) => {
       await ffmpeg.writeFile(fileName, frameData);
     }
 
-    self.postMessage({ type: 'log', data: 'Starting video encoding...' });
-    // Run the FFmpeg command to create the video.
-    await ffmpeg.exec([
+    const ffmpegCommand = [
       '-framerate',
       String(frameRate),
       '-i',
       'frame-%04d.webp',
+    ];
+
+    // If audio data is provided, write it and add it to the command.
+    if (audioBlob) {
+      self.postMessage({
+        type: 'log',
+        data: 'Writing audio to virtual file system...',
+      });
+      await ffmpeg.writeFile('input.audio', await fetchFile(audioBlob));
+      ffmpegCommand.push('-i', 'input.audio');
+    }
+
+    // Add standard video and audio encoding options.
+    ffmpegCommand.push(
       '-c:v',
       'libx264', // A widely compatible video codec
       '-pix_fmt',
       'yuv420p', // Ensures compatibility across most players
       '-preset',
-      'ultrafast', // Prioritize speed over quality for a better UX
-      'output.mp4',
-    ]);
+      'ultrafast' // Prioritize speed over quality for a better UX
+    );
+
+    // If audio is included, add audio codec and sync options.
+    if (audioBlob) {
+      ffmpegCommand.push(
+        '-c:a',
+        'aac', // A standard, high-quality audio codec
+        '-shortest' // Finish encoding when the shortest input stream ends
+      );
+    }
+
+    ffmpegCommand.push('output.mp4');
+
+    self.postMessage({ type: 'log', data: 'Starting video encoding...' });
+    self.postMessage({ type: 'log', data: `Executing: ffmpeg ${ffmpegCommand.join(' ')}`});
+
+    // Run the FFmpeg command to create the video.
+    await ffmpeg.exec(ffmpegCommand);
 
     self.postMessage({
       type: 'log',
