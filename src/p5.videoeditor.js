@@ -11,6 +11,7 @@ import AudioClip from './clips/AudioClip.js';
 import VideoClip from './clips/VideoClip.js';
 import SlideShowClip from './clips/SlideShowClip.js';
 import GIF from 'gif.js/src/GIF';
+import Exporter from './export/Exporter.js';
 import EffectBase from './effects/EffectBase.js';
 
 /**
@@ -167,6 +168,102 @@ class VideoEditor {
 
     console.log('Rendering GIF frames...');
     gif.render();
+  }
+
+  /**
+   * Exports the timeline animation as an MP4 video file.
+   * This process uses FFmpeg compiled to WebAssembly and can be resource-intensive.
+   * @param {object} [options={}] - Configuration options for the MP4 export.
+   * @param {number} [options.frameRate=30] - The frame rate of the exported video.
+   * @param {string} [options.filename='p5.videoeditor-export.mp4'] - The filename for the downloaded video.
+   * @param {function} [options.onProgress=null] - A callback for FFmpeg progress updates (0-100).
+   * @param {function} [options.onLog=null] - A callback for FFmpeg log messages.
+   * @returns {Promise<void>} A promise that resolves when the export is complete.
+   * @example
+   * // Basic export
+   * editor.exportMP4();
+   *
+   * // Export with options and progress tracking
+   * editor.exportMP4({
+   *   frameRate: 60,
+   *   filename: 'my-video.mp4',
+   *   onProgress: (progress) => {
+   *     console.log(`FFmpeg Progress: ${progress}%`);
+   *   },
+   *   onLog: (message) => {
+   *     console.log(`FFmpeg Log: ${message}`);
+   *   }
+   * });
+   */
+  async exportMP4({
+    frameRate = 30,
+    filename = 'p5.videoeditor-export.mp4',
+    onProgress = null,
+    onLog = null,
+  } = {}) {
+    console.log('Starting MP4 export...');
+    const wasPlaying = this.playbackController.isPlaying;
+    const originalTime = this.timeline.time;
+    let exporter = null;
+
+    try {
+      this.pause();
+      this.seek(0);
+
+      const frames = [];
+      const frameDelay = 1000 / frameRate;
+      const totalFrames = Math.floor(this.timeline.duration / frameDelay);
+
+      if (onLog) onLog('Generating frames...');
+
+      for (let i = 0; i < totalFrames; i++) {
+        const currentTime = i * frameDelay;
+        this.seek(currentTime);
+        this.update(this.timeline.p);
+        await this.render();
+        // Capture frame as a WebP Data URL for efficiency
+        const frameDataURL = this.timeline.canvas.toDataURL('image/webp', 0.9);
+        frames.push(frameDataURL);
+        // Provide a simple progress for the frame generation part
+        if (onProgress) onProgress(((i + 1) / totalFrames) * 10); // Report up to 10% progress for frame gen
+      }
+
+      if (onLog) onLog('Frames generated. Initializing exporter...');
+
+      await new Promise((resolve, reject) => {
+        exporter = new Exporter({
+          onProgress,
+          onLog,
+          onError: reject,
+          onComplete: (videoBlob) => {
+            const url = URL.createObjectURL(videoBlob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = filename;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+            console.log('MP4 export finished.');
+            resolve();
+          },
+        });
+
+        exporter.export(frames, frameRate);
+      });
+    } catch (error) {
+      console.error('MP4 export failed:', error);
+      ErrorHandler.showUserFriendlyError(error);
+    } finally {
+      // Cleanup and restore state
+      if (exporter) {
+        exporter.terminate();
+      }
+      this.seek(originalTime);
+      if (wasPlaying) {
+        this.play();
+      }
+    }
   }
 
   /**
