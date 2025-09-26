@@ -1,6 +1,7 @@
 import Keyframe from '../core/Keyframe.js';
 import Easing from '../utils/Easing.js';
 import ErrorHandler from '../utils/ErrorHandler.js';
+import { getValueByPath, setValueByPath } from '../utils/ObjectUtils.js';
 
 /**
  * @class ClipBase
@@ -58,12 +59,6 @@ class ClipBase {
    *       .addKeyframe('x', 1000, 200, 'easeInQuad');
    */
   addKeyframe(property, time, value, easing = 'linear') {
-    if (!Object.prototype.hasOwnProperty.call(this.properties, property)) {
-      ErrorHandler.critical(
-        `Property "${property}" is not a recognized or animatable property of this clip.`
-      );
-    }
-
     if (!this.keyframes[property]) {
       this.keyframes[property] = [];
     }
@@ -126,11 +121,13 @@ class ClipBase {
    * @param {number} relativeTime - The current time within the clip's duration, in milliseconds.
    */
   update(p, relativeTime) {
-    Object.assign(this.properties, this.initialProperties);
+    // Deep copy initial properties to reset state for this frame
+    this.properties = JSON.parse(JSON.stringify(this.initialProperties));
 
     for (const prop in this.keyframes) {
       if (Object.prototype.hasOwnProperty.call(this.keyframes, prop)) {
-        this.properties[prop] = this._calculateValue(p, prop, relativeTime);
+        const value = this._calculateValue(p, prop, relativeTime);
+        setValueByPath(this.properties, prop, value);
       }
     }
   }
@@ -146,7 +143,7 @@ class ClipBase {
   _calculateValue(p, prop, time) {
     const kfs = this.keyframes[prop];
     if (!kfs || kfs.length === 0) {
-      return this.initialProperties[prop];
+      return getValueByPath(this.initialProperties, prop);
     }
 
     if (time <= kfs[0].time) {

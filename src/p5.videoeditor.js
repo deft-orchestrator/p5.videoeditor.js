@@ -10,6 +10,7 @@ import ImageClip from './clips/ImageClip.js';
 import AudioClip from './clips/AudioClip.js';
 import VideoClip from './clips/VideoClip.js';
 import SlideShowClip from './clips/SlideShowClip.js';
+import GIF from 'gif.js/src/GIF';
 import EffectBase from './effects/EffectBase.js';
 
 /**
@@ -51,14 +52,24 @@ class VideoEditor {
    * @param {object} [options={}] - Configuration options for the editor.
    * @param {HTMLCanvasElement} [options.canvas=null] - The p5.js canvas element. Required for exporting.
    * @param {HTMLElement} [options.uiContainer=null] - The container to append the UI controls to.
+   * @param {string} [options.gifWorkerPath=null] - The path to the 'gif.worker.js' file for GIF exporting.
    * @param {object} [options.performance] - Performance-related settings passed to the PerformanceManager.
    */
-  constructor(p, { canvas = null, uiContainer = null, ...options } = {}) {
+  constructor(
+    p,
+    {
+      canvas = null,
+      uiContainer = null,
+      gifWorkerPath = './gif.worker.js', // Default path for the distributed worker file
+      ...options
+    } = {}
+  ) {
     if (!p) {
       throw new Error(
         'A p5.js instance must be provided to the VideoEditor constructor.'
       );
     }
+    this.options = { gifWorkerPath };
     this.timeline = new Timeline(p, canvas, options);
     this.playbackController = new PlaybackController(
       this.timeline,
@@ -71,6 +82,91 @@ class VideoEditor {
     this.play = this.playbackController.play.bind(this.playbackController);
     this.pause = this.playbackController.pause.bind(this.playbackController);
     this.seek = this.playbackController.seek.bind(this.playbackController);
+  }
+
+  /**
+   * Exports the timeline animation as a GIF file.
+   * This process is resource-intensive and may take some time.
+   * @param {object} [options={}] - Configuration options for the GIF export.
+   * @param {number} [options.frameRate=15] - The frame rate of the exported GIF.
+   * @param {number} [options.quality=10] - The quality of the GIF encoder. Lower is better.
+   * @param {string} [options.filename='p5.videoeditor-export.gif'] - The filename for the downloaded GIF.
+   * @param {function} [options.onProgress=null] - A callback function that receives the progress (0 to 1).
+   * @returns {Promise<void>} A promise that resolves when the export is complete.
+   * @example
+   * // Basic export
+   * editor.exportGIF();
+   *
+   * // Export with options and progress tracking
+   * editor.exportGIF({
+   *   frameRate: 24,
+   *   quality: 5,
+   *   filename: 'my-animation.gif',
+   *   onProgress: (progress) => {
+   *     console.log(`Export progress: ${Math.round(progress * 100)}%`);
+   *   }
+   * });
+   */
+  async exportGIF({
+    frameRate = 15,
+    quality = 10,
+    filename = 'p5.videoeditor-export.gif',
+    onProgress = null,
+  } = {}) {
+    console.log('Starting GIF export...');
+    const wasPlaying = this.playbackController.isPlaying;
+    const originalTime = this.timeline.time;
+
+    this.pause();
+    this.seek(0);
+
+    const gif = new GIF({
+      workers: 2,
+      quality,
+      workerScript: this.options.gifWorkerPath,
+    });
+
+    const frameDelay = 1000 / frameRate;
+    const totalFrames = Math.floor(this.timeline.duration / frameDelay);
+
+    for (let i = 0; i < totalFrames; i++) {
+      const currentTime = i * frameDelay;
+      this.seek(currentTime);
+      this.update(this.timeline.p);
+      await this.render();
+
+      // addFrame can take a canvas element or a context
+      gif.addFrame(this.timeline.canvas, {
+        copy: true,
+        delay: frameDelay,
+      });
+
+      if (onProgress) {
+        onProgress((i + 1) / totalFrames);
+      }
+    }
+
+    gif.on('finished', (blob) => {
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+
+      console.log('GIF export finished.');
+
+      // Restore original state
+      this.seek(originalTime);
+      if (wasPlaying) {
+        this.play();
+      }
+    });
+
+    console.log('Rendering GIF frames...');
+    gif.render();
   }
 
   /**
