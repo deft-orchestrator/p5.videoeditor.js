@@ -1,15 +1,16 @@
-import { VideoEditor, ImageClip } from '../src/p5.videoeditor.js';
+import { VideoEditor } from '../src/p5.videoeditor.js';
 
 const sketch = (p) => {
   let editor;
   let p5Logo;
 
   p.preload = () => {
+    // It's good practice to load assets in preload
     p5Logo = p.loadImage('https://p5js.org/assets/img/p5js-square.svg');
   };
 
-  p.setup = async () => {
-    const canvas = p.createCanvas(640, 360);
+  p.setup = () => {
+    const canvas = p.createCanvas(640, 360, p.WEBGL); // Use WEBGL mode for shaders
     const uiContainer = document.getElementById('controls');
     const canvasContainer = document.getElementById('canvas-container');
     canvas.parent(canvasContainer);
@@ -20,40 +21,29 @@ const sketch = (p) => {
       uiContainer: uiContainer,
     });
 
-    // Pre-load the shader required for the effect
-    await editor.timeline.renderEngine.loadShader(
-      'BrightnessContrast',
-      '../src/shaders/brightness-contrast.frag'
-    );
-
-    const image = new ImageClip(p5Logo, {
+    // Create a clip and add it to the timeline
+    const imageClip = editor.createImageClip(p5Logo, {
       start: 0,
       duration: 5000,
       properties: {
-        x: p.width / 2,
-        y: p.height / 2,
+        x: 0, // Center in WEBGL mode
+        y: 0,
         width: 200,
         height: 200,
+        imageMode: 'center',
       },
     });
 
-    // Add the GPU effect
-    image.addEffect({
-      type: 'brightnessContrast',
-      brightness: 0.2, // Make it 20% brighter
-      contrast: 0.3, // Increase contrast by 30%
+    // Add the built-in 'blur' GPU effect
+    const blurEffect = imageClip.addEffect('blur', {
+      radius: 0, // Start with no blur
     });
 
-    // Animate the effect properties over time
-    image.addKeyframe('brightness', 0, 0.2);
-    image.addKeyframe('brightness', 2500, -0.2);
-    image.addKeyframe('brightness', 5000, 0.2);
+    // Animate the blur radius over time using keyframes on the effect itself
+    blurEffect.addKeyframe('radius', 0, 0); // At 0s, radius is 0
+    blurEffect.addKeyframe('radius', 2500, 15); // At 2.5s, radius is 15
+    blurEffect.addKeyframe('radius', 5000, 0); // At 5s, radius is 0
 
-    image.addKeyframe('contrast', 0, 0.3);
-    image.addKeyframe('contrast', 2500, 0.0);
-    image.addKeyframe('contrast', 5000, 0.3);
-
-    editor.addClip(image);
     editor.play();
 
     window.dispatchEvent(
@@ -62,9 +52,9 @@ const sketch = (p) => {
   };
 
   p.draw = () => {
-    p.background(50);
+    // The RenderEngine handles clearing the background, so we don't need p.background()
     editor.update(p);
-    editor.render(p);
+    editor.render();
   };
 };
 

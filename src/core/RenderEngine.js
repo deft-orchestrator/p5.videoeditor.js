@@ -83,8 +83,10 @@ class RenderEngine {
 
     for (const clip of standaloneClips) {
       const relativeTime = time - clip.start;
+      // Pass the RenderEngine instance to the apply method.
+      // CPU effects will draw to the buffer, while GPU effects will queue themselves.
       for (const effect of clip.effects) {
-        effect.apply(clip, this.sceneBuffer, relativeTime);
+        effect.apply(clip, this, relativeTime);
       }
       clip.render(this.sceneBuffer);
     }
