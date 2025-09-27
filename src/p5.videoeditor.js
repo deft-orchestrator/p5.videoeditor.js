@@ -10,7 +10,8 @@ import ImageClip from './clips/ImageClip.js';
 import AudioClip from './clips/AudioClip.js';
 import VideoClip from './clips/VideoClip.js';
 import SlideShowClip from './clips/SlideShowClip.js';
-import GIF from 'gif.js/src/GIF';
+// The 'gif.js' library is expected to be loaded via a <script> tag,
+// making the `GIF` constructor globally available.
 import Exporter from './export/Exporter.js';
 import EffectBase from './effects/EffectBase.js';
 import TimelineUI from './ui/TimelineUI.js';
@@ -57,29 +58,30 @@ class VideoEditor {
    * @param {string} [options.gifWorkerPath=null] - The path to the 'gif.worker.js' file for GIF exporting.
    * @param {object} [options.performance] - Performance-related settings passed to the PerformanceManager.
    */
-  constructor(
-    p,
-    {
-      canvas = null,
-      uiContainer = null,
-      timelineUiContainer = null,
-      gifWorkerPath = './gif.worker.js', // Default path for the distributed worker file
-      ...options
-    } = {}
-  ) {
+  constructor(p, options = {}) {
     if (!p) {
       throw new Error(
         'A p5.js instance must be provided to the VideoEditor constructor.'
       );
     }
+
+    const {
+      canvas = null,
+      uiContainer = null,
+      timelineUiContainer = null,
+      gifWorkerPath = './gif.worker.js',
+    } = options;
+
     this.options = { gifWorkerPath };
-    this.timeline = new Timeline(p, canvas, options);
+    this.timeline = new Timeline(p, canvas, options); // Pass the whole options object
     this.playbackController = new PlaybackController(
       this.timeline,
       canvas,
       uiContainer
     );
-    this.performanceManager = new PerformanceManager(options.performance);
+    this.performanceManager = new PerformanceManager(
+      options.performance
+    );
     this.memoryManager = new MemoryManager();
 
     this.play = this.playbackController.play.bind(this.playbackController);
