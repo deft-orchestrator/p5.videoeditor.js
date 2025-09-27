@@ -2,12 +2,6 @@ import { VideoEditor } from '../src/p5.videoeditor.js';
 
 const sketch = (p) => {
   let editor;
-  let p5Logo;
-
-  p.preload = () => {
-    // Using a placeholder image URL. In a real scenario, this would be a local asset.
-    p5Logo = p.loadImage('https://p5js.org/assets/img/p5js-square.svg');
-  };
 
   p.setup = () => {
     const canvas = p.createCanvas(640, 360);
@@ -21,9 +15,17 @@ const sketch = (p) => {
       uiContainer: uiContainer,
     });
 
+    // Create a background graphic to act as our "image"
+    const bgGraphic = p.createGraphics(150, 150);
+    bgGraphic.background('#577590');
+    bgGraphic.fill('#f9c74f');
+    bgGraphic.noStroke();
+    bgGraphic.rectMode(p.CENTER);
+    bgGraphic.rect(75, 75, 50, 50);
+
     // An image clip on the bottom layer (layer 0), created with the factory method and chaining
     editor
-      .createImageClip(p5Logo, {
+      .createImageClip(bgGraphic, {
         start: 0,
         duration: 6000,
         layer: 0,
@@ -32,7 +34,7 @@ const sketch = (p) => {
           y: p.height / 2,
           width: 150,
           height: 150,
-          opacity: 0.2,
+          opacity: 0.5,
         },
       })
       .addKeyframe('rotation', 0, -0.2)
@@ -70,10 +72,10 @@ const sketch = (p) => {
     );
   };
 
-  p.draw = () => {
+  p.draw = async () => {
     p.background(50);
     editor.update(p);
-    editor.render(); // p is no longer needed here after RenderEngine refactor
+    await editor.render(); // p is no longer needed here after RenderEngine refactor
   };
 };
 
