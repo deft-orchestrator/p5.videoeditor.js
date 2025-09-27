@@ -141,8 +141,10 @@ class RenderEngine {
 
     for (const clip of standaloneClips) {
       const relativeTime = time - clip.start;
+      // Pass the RenderEngine instance to the apply method.
+      // CPU effects will draw to the buffer, while GPU effects will queue themselves.
       for (const effect of clip.effects) {
-        effect.apply(clip, this.sceneBuffer, relativeTime);
+        effect.apply(clip, this, relativeTime);
       }
       clip.render(this.sceneBuffer);
     }
@@ -244,6 +246,431 @@ class ErrorHandler {
 }
 
 /**
+ * @class EffectBase
+ * @description The abstract base class for all visual effects.
+ * It defines the standard interface that all effects must implement.
+ */
+class EffectBase {
+  /**
+   * @constructor
+   * @param {object} [options={}] - Configuration options for the effect.
+   * @param {number} [options.start=0] - The start time of the effect, relative to the clip's start, in milliseconds.
+   * @param {number} [options.duration=1000] - The duration of the effect in milliseconds.
+   */
+  constructor({ start = 0, duration = 1000 } = {}) {
+    this.start = start;
+    this.duration = duration;
+  }
+
+  /**
+   * Abstract method to apply the effect.
+   * This method must be implemented by any class that extends EffectBase.
+   * @param {ClipBase} clip - The clip to which the effect is being applied.
+   * @param {p5} p - The p5.js instance.
+   * @param {number} relativeTime - The current time within the clip's duration, in milliseconds.
+   */
+  apply(_clip, _p, _relativeTime) {
+    throw new Error('The "apply()" method must be implemented by a subclass.');
+  }
+}
+
+/**
+ * @class GPUEffectBase
+ * @description A base class for GPU-accelerated post-processing effects.
+ * This class handles the interaction with the RenderEngine's post-processing pipeline.
+ * @extends EffectBase
+ */
+class GPUEffectBase extends EffectBase {
+  /**
+   * @constructor
+   * @param {object} options - Configuration options for the effect.
+   * @param {string} options.type - The unique type name of the effect, matching its shader key.
+   * @param {string} options.fragUrl - The URL to the fragment shader file.
+   */
+  constructor(options = {}) {
+    super(options);
+    if (!options.type || !options.fragUrl) {
+      ErrorHandler.critical(
+        'GPUEffectBase requires a `type` and `fragUrl` in its options.'
+      );
+    }
+    this.type = options.type;
+    this.fragUrl = options.fragUrl;
+    this.uniforms = options.uniforms || {};
+  }
+
+  /**
+   * Applies the GPU effect by queuing it in the RenderEngine.
+   * @param {ClipBase} clip - The clip being processed.
+   * @param {RenderEngine} renderEngine - The render engine instance.
+   * @param {number} relativeTime - The current time relative to the clip's start.
+   */
+  apply(clip, renderEngine, relativeTime) {
+    if (
+      relativeTime >= this.start &&
+      relativeTime < this.start + this.duration
+    ) {
+      // Ensure the shader is loaded
+      renderEngine.loadShader(this.type, this.fragUrl);
+
+      // Add this effect to the post-processing queue for this frame
+      renderEngine.postProcessingEffects.push({
+        type: this.type,
+        uniforms: this.getUniforms(relativeTime),
+      });
+    }
+  }
+
+  /**
+   * Returns the uniforms to be passed to the shader for the current frame.
+   * This method can be overridden by subclasses to compute dynamic uniforms.
+   * @param {number} relativeTime - The current time relative to the clip's start.
+   * @returns {object} An object containing the shader uniforms.
+   */
+  getUniforms(relativeTime) {
+    return this.uniforms;
+  }
+}
+
+/**
+ * @class BlurEffect
+ * @description A two-pass Gaussian blur effect that leverages the GPU.
+ * This effect demonstrates a more complex multi-pass post-processing effect.
+ * @extends GPUEffectBase
+ */
+class BlurEffect extends GPUEffectBase {
+  /**
+   * @constructor
+   * @param {object} options - Configuration options for the blur effect.
+   * @param {number} [options.radius=5] - The radius of the blur in pixels. Higher values are more blurry.
+   */
+  constructor(options = {}) {
+    super({
+      ...options,
+      type: 'blur',
+      fragUrl: 'src/shaders/blur.frag',
+    });
+    this.radius = options.radius || 5;
+  }
+
+  /**
+   * Applies the two-pass blur effect by queuing two separate post-processing steps.
+   * @param {ClipBase} clip - The clip being processed.
+   * @param {RenderEngine} renderEngine - The render engine instance.
+   * @param {number} relativeTime - The current time relative to the clip's start.
+   */
+  apply(clip, renderEngine, relativeTime) {
+    if (
+      relativeTime >= this.start &&
+      relativeTime < this.start + this.duration
+    ) {
+      // Ensure the shader is loaded
+      renderEngine.loadShader(this.type, this.fragUrl);
+
+      const resolution = Math.max(renderEngine.width, renderEngine.height);
+
+      // Pass 1: Horizontal Blur
+      renderEngine.postProcessingEffects.push({
+        type: this.type,
+        uniforms: {
+          u_radius: this.radius,
+          u_direction: [1.0, 0.0],
+          u_resolution: resolution,
+        },
+      });
+
+      // Pass 2: Vertical Blur
+      renderEngine.postProcessingEffects.push({
+        type: this.type,
+        uniforms: {
+          u_radius: this.radius,
+          u_direction: [0.0, 1.0],
+          u_resolution: resolution,
+        },
+      });
+    }
+  }
+}
+
+/**
+ * @constant BlurEffectPlugin
+ * @description The plugin object that allows the BlurEffect to be registered with the editor.
+ * This makes the 'blur' effect type available for use on clips.
+ */
+const BlurEffectPlugin = {
+  name: 'BlurEffect',
+  type: 'effect',
+  onLoad: (timeline) => {
+    // Note: We register the class constructor, not an instance.
+    // The timeline will instantiate it when a user adds the effect.
+    timeline.registerEffectType('blur', BlurEffect);
+  },
+};
+
+/**
+ * @class TransitionBase
+ * @description The foundational class for all transition effects between clips.
+ * It provides the core logic for calculating transition progress.
+ */
+class TransitionBase {
+  /**
+   * @constructor
+   * @param {object} options - The configuration object for the transition.
+   * @param {ClipBase} options.fromClip - The clip the transition starts from.
+   * @param {ClipBase} options.toClip - The clip the transition ends on.
+   * @param {number} options.duration - The duration of the transition in milliseconds.
+   */
+  constructor({ fromClip, toClip, duration }) {
+    if (!fromClip || !toClip) {
+      throw new Error(
+        'A transition requires both a `fromClip` and a `toClip`.'
+      );
+    }
+    if (typeof duration !== 'number' || duration <= 0) {
+      throw new Error('A transition requires a positive `duration`.');
+    }
+
+    this.fromClip = fromClip;
+    this.toClip = toClip;
+    this.duration = duration;
+
+    // By default, a transition is assumed to start exactly when the `toClip` begins.
+    // This could be made more flexible in the options later if needed.
+    this.start = this.toClip.start;
+  }
+
+  /**
+   * Calculates the progress of the transition at a given time.
+   * The progress is clamped between 0.0 and 1.0.
+   * @param {number} time - The current time on the main timeline in milliseconds.
+   * @returns {number} The progress of the transition as a value from 0.0 to 1.0.
+   */
+  getProgress(time) {
+    if (time < this.start) {
+      return 0.0;
+    }
+    if (time > this.start + this.duration) {
+      return 1.0;
+    }
+    // Linear progress calculation
+    return (time - this.start) / this.duration;
+  }
+
+  /**
+   * Abstract render method.
+   * Subclasses must implement this method to apply the visual transition effect.
+   * @param {p5} p - The p5.js instance.
+   * @param {number} progress - The current progress of the transition (0.0 to 1.0).
+   */
+  render(_p, _progress) {
+    // This method is intended to be overridden by subclasses.
+    // For example, a fade transition would use the progress to control opacity.
+    throw new Error(
+      'The `render` method must be implemented by a subclass of TransitionBase.'
+    );
+  }
+}
+
+/**
+ * @class CrossFadeTransition
+ * @extends TransitionBase
+ * @description A transition that fades out the `fromClip` while fading in the `toClip`.
+ */
+class CrossFadeTransition extends TransitionBase {
+  /**
+   * @constructor
+   * @param {object} options - The configuration object for the transition.
+   *                          Inherits options from TransitionBase.
+   */
+  constructor(options) {
+    super(options);
+  }
+
+  /**
+   * Renders the cross-fade effect by adjusting the opacity of the two clips.
+   * This method is called by the timeline's render loop when the transition is active.
+   * @param {p5} p - The p5.js instance.
+   * @param {number} time - The current time on the main timeline in milliseconds.
+   */
+  render(p, time) {
+    const progress = this.getProgress(time);
+
+    // Store the original opacities to ensure the transition is non-destructive.
+    const fromClipOpacity = this.fromClip.properties.opacity;
+    const toClipOpacity = this.toClip.properties.opacity;
+
+    try {
+      // Apply the transitional opacity.
+      this.fromClip.properties.opacity = fromClipOpacity * (1 - progress);
+      this.toClip.properties.opacity = toClipOpacity * progress;
+
+      // Apply effects for both clips before rendering them.
+      const fromRelativeTime = time - this.fromClip.start;
+      for (const effect of this.fromClip.effects) {
+        effect.apply(this.fromClip, p, fromRelativeTime);
+      }
+      this.fromClip.render(p, fromRelativeTime);
+
+      const toRelativeTime = time - this.toClip.start;
+      for (const effect of this.toClip.effects) {
+        effect.apply(this.toClip, p, toRelativeTime);
+      }
+      this.toClip.render(p, toRelativeTime);
+    } finally {
+      // IMPORTANT: Restore the original opacities after rendering.
+      this.fromClip.properties.opacity = fromClipOpacity;
+      this.toClip.properties.opacity = toClipOpacity;
+    }
+  }
+}
+
+/**
+ * @type {object}
+ * @name CrossFadeTransitionPlugin
+ * @description The plugin object for the CrossFadeTransition.
+ * This object is what users will register with the timeline.
+ */
+const CrossFadeTransitionPlugin = {
+  name: 'CrossFadeTransition',
+  type: 'transition',
+  onLoad: (timeline) => {
+    timeline.registerTransitionType('crossfade', CrossFadeTransition);
+  },
+};
+
+class FadeInEffect extends EffectBase {
+  constructor(options = {}) {
+    super(options);
+    this.duration = options.duration || 500; // Default 500ms fade in
+  }
+
+  apply(clip, p, relativeTime) {
+    if (
+      relativeTime >= this.start &&
+      relativeTime < this.start + this.duration
+    ) {
+      const effectTime = relativeTime - this.start;
+      const t = effectTime / this.duration;
+      // Multiplies the existing opacity, allowing it to fade-in to a keyframed value.
+      clip.properties.opacity *= p.lerp(0, 1, t);
+    }
+  }
+}
+
+const FadeInEffectPlugin = {
+  name: 'FadeInEffect',
+  type: 'effect',
+  onLoad: (timeline) => {
+    timeline.registerEffectType('fadeIn', FadeInEffect);
+  },
+};
+
+class FadeOutEffect extends EffectBase {
+  constructor(options = {}) {
+    super(options);
+    this.duration = options.duration || 500; // Default 500ms fade out
+  }
+
+  apply(clip, p, relativeTime) {
+    if (
+      relativeTime >= this.start &&
+      relativeTime < this.start + this.duration
+    ) {
+      const effectTime = relativeTime - this.start;
+      const t = effectTime / this.duration;
+      clip.properties.opacity *= p.lerp(1, 0, t);
+    }
+  }
+}
+
+const FadeOutEffectPlugin = {
+  name: 'FadeOutEffect',
+  type: 'effect',
+  onLoad: (timeline) => {
+    timeline.registerEffectType('fadeOut', FadeOutEffect);
+  },
+};
+
+/**
+ * @class WiggleEffect
+ * @extends EffectBase
+ * @description Applies a procedural "wiggle" to a clip's position using Perlin noise.
+ * This is a CPU-based effect that modifies clip properties before rendering.
+ */
+class WiggleEffect extends EffectBase {
+  /**
+   * @constructor
+   * @param {object} [options={}] - Configuration options.
+   * @param {number} [options.frequency=1] - The speed of the wiggle. Higher values are faster.
+   * @param {number} [options.amplitude=10] - The maximum distance the clip will move from its original position, in pixels.
+   */
+  constructor({ frequency = 1, amplitude = 10, ...baseOptions } = {}) {
+    super(baseOptions);
+    this.frequency = frequency;
+    this.amplitude = amplitude;
+  }
+
+  /**
+   * Applies the wiggle effect by modifying the clip's x and y properties.
+   * @param {p5} p - The p5.js instance.
+   * @param {ClipBase} clip - The clip to which the effect is being applied.
+   */
+  apply(p, clip) {
+    // Use the p5.js millis() function for a continuous time value, scaled by frequency.
+    // Dividing by 1000 converts it to seconds for more manageable frequency values.
+    const time = (p.millis() / 1000) * this.frequency;
+
+    // Use Perlin noise to generate smooth, random-like values between 0 and 1.
+    // We use different "seeds" for x and y by adding a large offset to the noise input
+    // to ensure the motion is not just diagonal.
+    const noiseX = p.noise(time);
+    const noiseY = p.noise(time + 10000); // Large offset for a different noise value
+
+    // Map the noise value from its original [0, 1] range to [-1, 1]
+    const offsetX = (noiseX * 2 - 1) * this.amplitude;
+    const offsetY = (noiseY * 2 - 1) * this.amplitude;
+
+    // Add the calculated offset to the clip's current properties.
+    // This is non-destructive because properties are reset from keyframes
+    // in the ClipBase.update() method on every frame.
+    clip.properties.x += offsetX;
+    clip.properties.y += offsetY;
+  }
+}
+
+/**
+ * @type {object}
+ * @name WiggleEffectPlugin
+ * @description The plugin object for the WiggleEffect.
+ * This object is what users will register with the timeline.
+ */
+const WiggleEffectPlugin = {
+  name: 'WiggleEffect',
+  type: 'effect',
+  onLoad: (timeline) => {
+    timeline.registerEffectType('wiggle', WiggleEffect);
+  },
+};
+
+/**
+ * @namespace BuiltInPlugins
+ * @description A collection of the default plugins included with the library.
+ * This array is automatically loaded by the Timeline at initialization.
+ */
+const builtInPlugins = [
+  // GPU Effects
+  BlurEffectPlugin,
+
+  // CPU Effects
+  FadeInEffectPlugin,
+  FadeOutEffectPlugin,
+  WiggleEffectPlugin,
+
+  // Transitions
+  CrossFadeTransitionPlugin,
+];
+
+/**
  * @class Timeline
  * @description Manages the collection of clips, their timing, and the overall playback state.
  * It is the central component that orchestrates the animation. This class is typically
@@ -272,18 +699,25 @@ class Timeline {
     this.pluginManager = new PluginManager();
     this.transitionTypes = new Map();
     this.effectTypes = new Map();
-    this._pluginsLoaded = false;
+
+    this._loadBuiltInPlugins();
   }
 
   /**
-   * Registers a plugin with the timeline.
+   * Registers a plugin with the timeline and immediately loads it.
    * @param {object} plugin - The plugin to register.
    * @example
    * import MyCustomPlugin from './plugins/my-plugin.js';
-   * editor.timeline.use(new MyCustomPlugin());
+   * editor.use(MyCustomPlugin); // Pass the plugin object itself
    */
   use(plugin) {
     this.pluginManager.register(plugin);
+    try {
+      // Immediately load the plugin so its effects/transitions are available
+      plugin.onLoad(this);
+    } catch (error) {
+      ErrorHandler.critical(`Error loading plugin: ${plugin.name}`, error);
+    }
   }
 
   /**
@@ -427,11 +861,6 @@ class Timeline {
    * @internal
    */
   update(p) {
-    if (!this._pluginsLoaded) {
-      this._loadPlugins();
-      this._pluginsLoaded = true;
-    }
-
     if (this.isPlaying) {
       this.time += p.deltaTime;
       if (this.time >= this.duration) {
@@ -488,14 +917,18 @@ class Timeline {
 
   /**
    * @private
-   * Loads all registered plugins by calling their onLoad methods.
+   * Loads all built-in plugins. This is called once on initialization.
    */
-  _loadPlugins() {
-    for (const plugin of this.pluginManager.plugins) {
+  _loadBuiltInPlugins() {
+    for (const plugin of builtInPlugins) {
+      this.pluginManager.register(plugin);
       try {
         plugin.onLoad(this);
       } catch (error) {
-        ErrorHandler.critical(`Error loading plugin: ${plugin.name}`, error);
+        ErrorHandler.critical(
+          `Error loading built-in plugin: ${plugin.name}`,
+          error
+        );
       }
     }
   }
@@ -609,11 +1042,12 @@ class Exporter {
   }
 
   /**
-   * Starts the export process by sending the captured frames to the worker.
+   * Starts the export process by sending the captured frames and optional audio to the worker.
    * @param {string[]} frames - An array of frame Data URLs.
    * @param {number} [frameRate=30] - The frame rate for the output video.
+   * @param {Blob|null} [audioBlob=null] - An optional Blob containing the audio data.
    */
-  export(frames, frameRate = 30) {
+  export(frames, frameRate = 30, audioBlob = null) {
     if (!frames || frames.length === 0) {
       const error = new Error('Cannot export without frames.');
       if (this.onError) {
@@ -624,8 +1058,9 @@ class Exporter {
       return;
     }
 
-    if (this.onLog) this.onLog('Sending frames to export worker...');
-    this.worker.postMessage({ frames, frameRate });
+    if (this.onLog)
+      this.onLog('Sending frames and audio data to export worker...');
+    this.worker.postMessage({ frames, frameRate, audioBlob });
   }
 
   /**
@@ -1028,6 +1463,35 @@ const Easing = {
 };
 
 /**
+ * Gets a nested value from an object using a string path.
+ * @param {object} obj The object to retrieve the value from.
+ * @param {string} path The path to the value (e.g., 'a.b.c').
+ * @returns {*} The value at the specified path, or undefined if not found.
+ */
+function getValueByPath(obj, path) {
+  return path.split('.').reduce((acc, part) => acc && acc[part], obj);
+}
+
+/**
+ * Sets a nested value in an object using a string path.
+ * Creates nested objects if they don't exist.
+ * @param {object} obj The object to modify.
+ * @param {string} path The path to the value (e.g., 'a.b.c').
+ * @param {*} value The value to set.
+ */
+function setValueByPath(obj, path, value) {
+  const keys = path.split('.');
+  const lastKey = keys.pop();
+  const lastObj = keys.reduce((acc, key) => {
+    if (!acc[key]) {
+      acc[key] = {};
+    }
+    return acc[key];
+  }, obj);
+  lastObj[lastKey] = value;
+}
+
+/**
  * @class ClipBase
  * @description The fundamental building block for all media types on the timeline.
  * It manages common properties like timing, position, rotation, scale, and opacity,
@@ -1083,12 +1547,6 @@ class ClipBase {
    *       .addKeyframe('x', 1000, 200, 'easeInQuad');
    */
   addKeyframe(property, time, value, easing = 'linear') {
-    if (!Object.prototype.hasOwnProperty.call(this.properties, property)) {
-      ErrorHandler.critical(
-        `Property "${property}" is not a recognized or animatable property of this clip.`
-      );
-    }
-
     if (!this.keyframes[property]) {
       this.keyframes[property] = [];
     }
@@ -1151,11 +1609,13 @@ class ClipBase {
    * @param {number} relativeTime - The current time within the clip's duration, in milliseconds.
    */
   update(p, relativeTime) {
-    Object.assign(this.properties, this.initialProperties);
+    // Deep copy initial properties to reset state for this frame
+    this.properties = JSON.parse(JSON.stringify(this.initialProperties));
 
     for (const prop in this.keyframes) {
       if (Object.prototype.hasOwnProperty.call(this.keyframes, prop)) {
-        this.properties[prop] = this._calculateValue(p, prop, relativeTime);
+        const value = this._calculateValue(p, prop, relativeTime);
+        setValueByPath(this.properties, prop, value);
       }
     }
   }
@@ -1171,7 +1631,7 @@ class ClipBase {
   _calculateValue(p, prop, time) {
     const kfs = this.keyframes[prop];
     if (!kfs || kfs.length === 0) {
-      return this.initialProperties[prop];
+      return getValueByPath(this.initialProperties, prop);
     }
 
     if (time <= kfs[0].time) {
@@ -1808,31 +2268,265 @@ class SlideShowClip extends ClipBase {
 }
 
 /**
- * @class EffectBase
- * @description The abstract base class for all visual effects.
- * It defines the standard interface that all effects must implement.
+ * @class TimelineUI
+ * @description Renders and manages the interactive timeline interface.
  */
-class EffectBase {
+class TimelineUI {
   /**
    * @constructor
-   * @param {object} [options={}] - Configuration options for the effect.
-   * @param {number} [options.start=0] - The start time of the effect, relative to the clip's start, in milliseconds.
-   * @param {number} [options.duration=1000] - The duration of the effect in milliseconds.
+   * @param {object} editor - The main p5.videoeditor instance.
+   * @param {HTMLElement} container - The HTML element to mount the UI into.
    */
-  constructor({ start = 0, duration = 1000 } = {}) {
-    this.start = start;
-    this.duration = duration;
+  constructor(editor, container) {
+    this.editor = editor;
+    this.timeline = editor.timeline;
+    this.container = container;
+    this.isDragging = false;
+    this.draggedClip = null;
+    this.dragStartX = 0;
+    this.originalClipStart = 0;
+
+    this.view = {
+      width: this.container.clientWidth,
+      height: 200, // Default height
+      scale: 50, // 50 pixels per second
+    };
+    this.colors = {
+      background: '#282828',
+      ruler: '#333333',
+      text: '#DDDDDD',
+      clip: '#4A90E2',
+      playhead: '#FF0000',
+    };
+    this.layout = {
+      rulerHeight: 30,
+      trackHeight: 25,
+      trackGap: 5,
+    };
+
+    this._createDOMElements();
+    this._attachEventListeners();
   }
 
   /**
-   * Abstract method to apply the effect.
-   * This method must be implemented by any class that extends EffectBase.
-   * @param {ClipBase} clip - The clip to which the effect is being applied.
-   * @param {p5} p - The p5.js instance.
-   * @param {number} relativeTime - The current time within the clip's duration, in milliseconds.
+   * @private
+   * Creates the necessary DOM elements for the timeline UI.
    */
-  apply(_clip, _p, _relativeTime) {
-    throw new Error('The "apply()" method must be implemented by a subclass.');
+  _createDOMElements() {
+    this.uiContainer = document.createElement('div');
+    this.uiContainer.className = 'p5ve-timeline-ui';
+    this.container.appendChild(this.uiContainer);
+
+    const sketch = (p) => {
+      this.p = p;
+      p.setup = () => {
+        const canvas = p.createCanvas(this.view.width, this.view.height);
+        canvas.parent(this.uiContainer);
+      };
+      p.draw = () => {
+        this._drawTimeline();
+      };
+    };
+
+    // Instantiate p5 in instance mode
+    new p5(sketch);
+  }
+
+  /**
+   * @private
+   * Attaches event listeners for UI interactions.
+   */
+  _attachEventListeners() {
+    const { p, layout } = this;
+
+    p.mousePressed = () => {
+      // Handle seeking
+      if (p.mouseY < layout.rulerHeight) {
+        this.isDragging = 'seek';
+        this._handleSeek(p.mouseX);
+        return;
+      }
+
+      // Handle seeking
+      if (p.mouseY < layout.rulerHeight) {
+        this.isDragging = 'seek';
+        this._handleSeek(p.mouseX);
+        return;
+      }
+
+      // Handle resizing and dragging
+      const { clip, handle } = this._getClipHandleAt(p.mouseX, p.mouseY);
+      if (clip) {
+        this.isDragging = handle; // 'left', 'right', or 'clip'
+        this.draggedClip = clip;
+        this.dragStartX = p.mouseX;
+        this.originalClipStart = clip.start;
+        this.originalClipDuration = clip.duration;
+      }
+    };
+
+    p.mouseDragged = () => {
+      if (this.isDragging === 'seek') {
+        this._handleSeek(p.mouseX);
+      } else if (this.draggedClip) {
+        const dx = p.mouseX - this.dragStartX;
+        const dTime = this._pxToTime(dx);
+
+        if (this.isDragging === 'clip') {
+          this._handleClipDrag(dTime);
+        } else if (this.isDragging === 'left') {
+          this._handleResizeLeft(dTime);
+        } else if (this.isDragging === 'right') {
+          this._handleResizeRight(dTime);
+        }
+      }
+    };
+
+    p.mouseReleased = () => {
+      this.isDragging = false;
+      this.draggedClip = null;
+    };
+  }
+
+  // --- Interaction Handlers ---
+
+  _handleSeek(mouseX) {
+    const time = this._pxToTime(mouseX);
+    this.timeline.seek(time);
+  }
+
+  _handleClipDrag(dTime) {
+    const newStart = this.originalClipStart + dTime;
+    this.draggedClip.start = Math.max(0, newStart);
+  }
+
+  _handleResizeLeft(dTime) {
+    const newStart = this.originalClipStart + dTime;
+    const newDuration = this.originalClipDuration - dTime;
+    if (newDuration > 100) {
+      // Minimum clip duration
+      this.draggedClip.start = Math.max(0, newStart);
+      this.draggedClip.duration = newDuration;
+    }
+  }
+
+  _handleResizeRight(dTime) {
+    const newDuration = this.originalClipDuration + dTime;
+    if (newDuration > 100) {
+      // Minimum clip duration
+      this.draggedClip.duration = newDuration;
+    }
+  }
+
+  _getClipHandleAt(x, y) {
+    const { timeline, layout } = this;
+    const handleWidth = 8; // px
+
+    for (const clip of timeline.clips) {
+      const clipX = this._timeToPx(clip.start);
+      const clipY =
+        layout.rulerHeight +
+        layout.trackGap +
+        clip.layer * (layout.trackHeight + layout.trackGap);
+      const clipW = this._timeToPx(clip.duration);
+      const clipH = layout.trackHeight;
+
+      if (y >= clipY && y <= clipY + clipH) {
+        if (x >= clipX && x < clipX + handleWidth) {
+          return { clip, handle: 'left' };
+        }
+        if (x > clipX + clipW - handleWidth && x <= clipX + clipW) {
+          return { clip, handle: 'right' };
+        }
+        if (x >= clipX && x <= clipX + clipW) {
+          return { clip, handle: 'clip' };
+        }
+      }
+    }
+    return { clip: null, handle: null };
+  }
+
+  // --- Coordinate Conversion ---
+
+  _timeToPx(time) {
+    return (time / 1000) * this.view.scale;
+  }
+
+  _pxToTime(px) {
+    return (px / this.view.scale) * 1000;
+  }
+
+  // --- Drawing Logic ---
+
+  _drawTimeline() {
+    this.p.background(this.colors.background);
+    this._drawRuler();
+    this._drawClips();
+    this._drawPlayhead();
+  }
+
+  _drawRuler() {
+    const { p, view, layout, colors } = this;
+    p.fill(colors.ruler);
+    p.noStroke();
+    p.rect(0, 0, view.width, layout.rulerHeight);
+
+    p.fill(colors.text);
+    p.textAlign(p.CENTER, p.CENTER);
+    p.textSize(10);
+
+    const increment = 1; // Major tick every 1 second
+    const numTicks = Math.floor(this._pxToTime(view.width) / 1000 / increment);
+
+    for (let i = 0; i <= numTicks; i++) {
+      const time = i * increment;
+      const x = this._timeToPx(time * 1000);
+      p.stroke(colors.text);
+      p.line(x, layout.rulerHeight - 10, x, layout.rulerHeight);
+      p.noStroke();
+      p.text(`${time}s`, x, layout.rulerHeight / 2);
+    }
+  }
+
+  _drawClips() {
+    const { p, timeline, layout, colors } = this;
+    p.noStroke();
+
+    for (const clip of timeline.clips) {
+      const x = this._timeToPx(clip.start);
+      const w = this._timeToPx(clip.duration);
+      const y =
+        layout.rulerHeight +
+        layout.trackGap +
+        clip.layer * (layout.trackHeight + layout.trackGap);
+
+      p.fill(colors.clip);
+      p.rect(x, y, w, layout.trackHeight, 4); // Rounded corners
+
+      p.fill(colors.text);
+      p.textAlign(p.LEFT, p.CENTER);
+      p.text(clip.name || 'Clip', x + 5, y + layout.trackHeight / 2);
+    }
+  }
+
+  _drawPlayhead() {
+    const { p, timeline, view, colors, layout } = this;
+    const x = this._timeToPx(timeline.time);
+
+    if (x >= 0 && x < view.width) {
+      p.stroke(colors.playhead);
+      p.strokeWeight(2);
+      p.line(x, layout.rulerHeight, x, view.height);
+    }
+  }
+
+  /**
+   * Updates and re-renders the timeline UI.
+   * This should be called in the p5.js draw loop.
+   */
+  draw() {
+    // The p5 draw loop is now handling rendering automatically.
+    // This method could be used for other updates if needed.
   }
 }
 
@@ -1883,6 +2577,7 @@ class VideoEditor {
     {
       canvas = null,
       uiContainer = null,
+      timelineUiContainer = null,
       gifWorkerPath = './gif.worker.js', // Default path for the distributed worker file
       ...options
     } = {}
@@ -1905,6 +2600,23 @@ class VideoEditor {
     this.play = this.playbackController.play.bind(this.playbackController);
     this.pause = this.playbackController.pause.bind(this.playbackController);
     this.seek = this.playbackController.seek.bind(this.playbackController);
+
+    // Initialize the UI if a container is provided
+    if (timelineUiContainer) {
+      this.ui = new TimelineUI(this, timelineUiContainer);
+    }
+  }
+
+  /**
+   * Registers a plugin with the editor. This allows for extending the editor's
+   * capabilities with custom effects, transitions, or other features.
+   * @param {object} plugin - The plugin to register. It must have an `onLoad` method.
+   * @example
+   * import MyWipeTransition from './my-wipe-transition.js';
+   * editor.use(MyWipeTransition);
+   */
+  use(plugin) {
+    this.timeline.use(plugin);
   }
 
   /**
@@ -1990,6 +2702,102 @@ class VideoEditor {
 
     console.log('Rendering GIF frames...');
     gif.render();
+  }
+
+  /**
+   * Exports the timeline animation as an MP4 video file.
+   * This process uses FFmpeg compiled to WebAssembly and can be resource-intensive.
+   * @param {object} [options={}] - Configuration options for the MP4 export.
+   * @param {number} [options.frameRate=30] - The frame rate of the exported video.
+   * @param {string} [options.filename='p5.videoeditor-export.mp4'] - The filename for the downloaded video.
+   * @param {function} [options.onProgress=null] - A callback for FFmpeg progress updates (0-100).
+   * @param {function} [options.onLog=null] - A callback for FFmpeg log messages.
+   * @returns {Promise<void>} A promise that resolves when the export is complete.
+   * @example
+   * // Basic export
+   * editor.exportMP4();
+   *
+   * // Export with options and progress tracking
+   * editor.exportMP4({
+   *   frameRate: 60,
+   *   filename: 'my-video.mp4',
+   *   onProgress: (progress) => {
+   *     console.log(`FFmpeg Progress: ${progress}%`);
+   *   },
+   *   onLog: (message) => {
+   *     console.log(`FFmpeg Log: ${message}`);
+   *   }
+   * });
+   */
+  async exportMP4({
+    frameRate = 30,
+    filename = 'p5.videoeditor-export.mp4',
+    onProgress = null,
+    onLog = null,
+  } = {}) {
+    console.log('Starting MP4 export...');
+    const wasPlaying = this.playbackController.isPlaying;
+    const originalTime = this.timeline.time;
+    let exporter = null;
+
+    try {
+      this.pause();
+      this.seek(0);
+
+      const frames = [];
+      const frameDelay = 1000 / frameRate;
+      const totalFrames = Math.floor(this.timeline.duration / frameDelay);
+
+      if (onLog) onLog('Generating frames...');
+
+      for (let i = 0; i < totalFrames; i++) {
+        const currentTime = i * frameDelay;
+        this.seek(currentTime);
+        this.update(this.timeline.p);
+        await this.render();
+        // Capture frame as a WebP Data URL for efficiency
+        const frameDataURL = this.timeline.canvas.toDataURL('image/webp', 0.9);
+        frames.push(frameDataURL);
+        // Provide a simple progress for the frame generation part
+        if (onProgress) onProgress(((i + 1) / totalFrames) * 10); // Report up to 10% progress for frame gen
+      }
+
+      if (onLog) onLog('Frames generated. Initializing exporter...');
+
+      await new Promise((resolve, reject) => {
+        exporter = new Exporter({
+          onProgress,
+          onLog,
+          onError: reject,
+          onComplete: (videoBlob) => {
+            const url = URL.createObjectURL(videoBlob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = filename;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+            console.log('MP4 export finished.');
+            resolve();
+          },
+        });
+
+        exporter.export(frames, frameRate);
+      });
+    } catch (error) {
+      console.error('MP4 export failed:', error);
+      ErrorHandler.showUserFriendlyError(error);
+    } finally {
+      // Cleanup and restore state
+      if (exporter) {
+        exporter.terminate();
+      }
+      this.seek(originalTime);
+      if (wasPlaying) {
+        this.play();
+      }
+    }
   }
 
   /**
@@ -2149,20 +2957,5 @@ class VideoEditor {
   }
 }
 
-export {
-  AudioClip,
-  ClipBase,
-  EffectBase,
-  ErrorHandler,
-  ImageClip,
-  MemoryManager,
-  PerformanceManager,
-  PlaybackController,
-  ShapeClip,
-  SlideShowClip,
-  TextClip,
-  Timeline,
-  VideoClip,
-  VideoEditor,
-};
+export { AudioClip, ClipBase, EffectBase, ErrorHandler, ImageClip, MemoryManager, PerformanceManager, PlaybackController, ShapeClip, SlideShowClip, TextClip, Timeline, VideoClip, VideoEditor };
 //# sourceMappingURL=p5.videoeditor.esm.js.map
