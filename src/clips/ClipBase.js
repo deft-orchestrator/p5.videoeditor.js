@@ -96,7 +96,7 @@ class ClipBase {
       const effect = new EffectClass(options);
       this.effects.push(effect);
     } else {
-      ErrorHandler.warn(`Effect with type "${type}" not found.`);
+      ErrorHandler.warning(`Effect with type "${type}" not found.`);
     }
 
     return this; // Allow chaining

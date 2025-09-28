@@ -36,12 +36,13 @@ const sketch = (p) => {
     });
 
     // Use built-in effects (auto-loaded)
-    textClip.addEffect('fadeIn', { duration: 1000 });
-    textClip.addEffect('wiggle', { frequency: 0.5, amplitude: 15 });
-    textClip.addEffect('fadeOut', { start: 4000, duration: 1000 });
+    textClip.addEffect({ type: 'fadeIn', duration: 1000 });
+    textClip.addEffect({ type: 'wiggle', frequency: 0.5, amplitude: 15 });
+    textClip.addEffect({ type: 'fadeOut', start: 4000, duration: 1000 });
 
     // Use our custom-loaded 'invert' effect
-    textClip.addEffect('invert', {
+    textClip.addEffect({
+      type: 'invert',
       start: 1500, // Invert colors from 1.5s to 3.5s
       duration: 2000,
     });
@@ -53,10 +54,10 @@ const sketch = (p) => {
     );
   };
 
-  p.draw = () => {
+  p.draw = async () => {
     p.background(50);
     editor.update(p);
-    editor.render();
+    await editor.render();
   };
 };
 
