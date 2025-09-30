@@ -36,10 +36,10 @@ class PlaybackController {
   _createUI() {
     if (!this.container) return;
 
-    const wrapper = document.createElement('div');
-    wrapper.style.padding = '10px';
-    wrapper.style.backgroundColor = '#f0f0f0';
-    wrapper.style.borderTop = '1.5px solid #ccc';
+    this.uiWrapper = document.createElement('div');
+    this.uiWrapper.style.padding = '10px';
+    this.uiWrapper.style.backgroundColor = '#f0f0f0';
+    this.uiWrapper.style.borderTop = '1.5px solid #ccc';
 
     // --- Basic Play/Pause Button ---
     this.playButton = document.createElement('button');
@@ -53,23 +53,23 @@ class PlaybackController {
         this.playButton.textContent = 'Pause';
       }
     };
-    wrapper.appendChild(this.playButton);
+    this.uiWrapper.appendChild(this.playButton);
 
     // --- Export Button ---
     this.exportButton = document.createElement('button');
     this.exportButton.textContent = 'Ekspor Video';
     this.exportButton.style.marginLeft = '10px';
     this.exportButton.onclick = () => this.startExportProcess();
-    wrapper.appendChild(this.exportButton);
+    this.uiWrapper.appendChild(this.exportButton);
 
     // --- Status Display ---
     this.exportStatus = document.createElement('span');
     this.exportStatus.style.marginLeft = '15px';
     this.exportStatus.style.fontFamily = 'monospace';
     this.exportStatus.style.display = 'none'; // Hidden by default
-    wrapper.appendChild(this.exportStatus);
+    this.uiWrapper.appendChild(this.exportStatus);
 
-    this.container.appendChild(wrapper);
+    this.container.appendChild(this.uiWrapper);
   }
 
   /**
@@ -191,6 +191,15 @@ class PlaybackController {
    */
   seek(time) {
     this.timeline.seek(time);
+  }
+
+  /**
+   * Removes the UI controls and cleans up event listeners.
+   */
+  destroy() {
+    if (this.uiWrapper) {
+      this.uiWrapper.remove();
+    }
   }
 }
 

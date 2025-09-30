@@ -1,13 +1,7 @@
-import { VideoEditor, VideoClip } from '../src/p5.videoeditor.js';
-import { CrossFadeTransitionPlugin } from '../src/plugins/CrossFadeTransitionPlugin.js';
+import { VideoEditor } from '../src/p5.videoeditor.js';
 
 const sketch = (p) => {
   let editor;
-
-  // NOTE: Provide your own video files here.
-  // For best results, use small, muted mp4 videos.
-  const videoSrc1 = 'https://p5js.org/assets/examples/videos/tree.mp4';
-  const videoSrc2 = 'https://p5js.org/assets/examples/videos/sea.mp4';
 
   p.setup = () => {
     const canvas = p.createCanvas(640, 360);
@@ -21,34 +15,33 @@ const sketch = (p) => {
       uiContainer: uiContainer,
     });
 
-    // Register the plugin with the timeline
-    editor.timeline.use(CrossFadeTransitionPlugin);
+    // The 'crossfade' transition is built-in and auto-loaded.
 
-    // First video clip
-    const clip1 = new VideoClip(videoSrc1, {
+    // First shape clip (a red rectangle)
+    const clip1 = editor.createShapeClip('rect', {
       start: 0,
       duration: 5000,
       properties: {
-        width: p.width,
-        height: p.height,
-        x: p.width / 2,
+        width: 150,
+        height: 150,
+        x: p.width / 2 - 80,
         y: p.height / 2,
+        fill: '#f94144',
       },
     });
-    editor.addClip(clip1);
 
-    // Second video clip
-    const clip2 = new VideoClip(videoSrc2, {
+    // Second shape clip (a green ellipse)
+    const clip2 = editor.createShapeClip('ellipse', {
       start: 4000, // Starts 1 second before the first clip ends
       duration: 4000,
       properties: {
-        width: p.width,
-        height: p.height,
-        x: p.width / 2,
+        width: 150,
+        height: 150,
+        x: p.width / 2 + 80,
         y: p.height / 2,
+        fill: '#90be6d',
       },
     });
-    editor.addClip(clip2);
 
     // Add a transition between the two clips
     editor.timeline.addTransition({
@@ -59,15 +52,17 @@ const sketch = (p) => {
     });
 
     editor.play();
+
+    // Notify the host page that the sketch is loaded, passing both p5 and editor instances.
     window.dispatchEvent(
-      new CustomEvent('sketch-loaded', { detail: { p5: p } })
+      new CustomEvent('sketch-loaded', { detail: { p5: p, editor: editor } })
     );
   };
 
-  p.draw = () => {
-    p.background(0); // Black background for video
+  p.draw = async () => {
+    p.background(50);
     editor.update(p);
-    editor.render(p);
+    await editor.render();
   };
 };
 

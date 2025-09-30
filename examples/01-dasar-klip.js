@@ -41,9 +41,9 @@ const sketch = (p) => {
 
     editor.play();
 
-    // Notify the host page that the sketch is loaded
+    // Notify the host page that the sketch is loaded, passing both p5 and editor instances.
     window.dispatchEvent(
-      new CustomEvent('sketch-loaded', { detail: { p5: p } })
+      new CustomEvent('sketch-loaded', { detail: { p5: p, editor: editor } })
     );
   };
 
