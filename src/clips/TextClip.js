@@ -38,9 +38,18 @@ class TextClip extends ClipBase {
   render(p, relativeTime) {
     super.render(p, relativeTime);
 
-    p.fill(this.properties.fill); // TODO: Handle opacity
-    p.textSize(this.properties.fontSize);
-    p.textAlign(this.properties.align, p.CENTER);
+    const { fill, fontSize, align, opacity } = this.properties;
+
+    // Set text color and handle opacity
+    const textColor = p.color(fill);
+    if (opacity < 1) {
+      textColor.setAlpha(opacity * 255);
+    }
+    p.fill(textColor);
+
+    // Set other text properties
+    p.textSize(fontSize);
+    p.textAlign(align, p.CENTER);
     p.text(this.text, 0, 0);
 
     p.pop();

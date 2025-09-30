@@ -259,6 +259,18 @@ class TimelineUI {
     // The p5 draw loop is now handling rendering automatically.
     // This method could be used for other updates if needed.
   }
+
+  /**
+   * Cleans up the UI components, removing the p5 instance and DOM elements.
+   */
+  destroy() {
+    if (this.p) {
+      this.p.remove(); // This stops the draw loop and removes the canvas.
+    }
+    if (this.uiContainer) {
+      this.uiContainer.remove(); // Remove the container div from the DOM.
+    }
+  }
 }
 
 export default TimelineUI;

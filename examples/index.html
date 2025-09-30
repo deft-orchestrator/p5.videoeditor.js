@@ -63,6 +63,7 @@
       }
     </style>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.9.0/p5.min.js"></script>
+    <script src="../node_modules/gif.js/dist/gif.js"></script>
   </head>
   <body>
     <nav>
@@ -95,48 +96,46 @@
       const exampleList = document.getElementById('example-list');
       const sketchContainer = document.getElementById('canvas-container');
 
-      let currentSketchInstance = null;
+      let currentEditorInstance = null;
+      let currentP5Instance = null;
       let currentScriptTag = null;
 
       function loadSketch(scriptSrc) {
-        // 1. Clean up the previous sketch
-        if (currentSketchInstance) {
-          currentSketchInstance.remove();
+        // 1. Clean up the previous sketch instances and DOM elements sequentially.
+        // The order is critical: remove p5 first, then destroy the editor.
+        if (currentP5Instance) {
+          currentP5Instance.remove();
+        }
+        if (currentEditorInstance) {
+          currentEditorInstance.destroy();
         }
         if (currentScriptTag) {
           currentScriptTag.remove();
         }
-        // Clear out any leftover UI controls or canvas
         sketchContainer.innerHTML = '';
         document.getElementById('controls').innerHTML = '';
 
-        // 2. Create a new script tag
+        // 2. Create a new script tag with a cache-busting query parameter
         currentScriptTag = document.createElement('script');
         currentScriptTag.type = 'module';
-        currentScriptTag.src = scriptSrc;
+        currentScriptTag.src = `${scriptSrc}?t=${Date.now()}`;
 
         // 3. Append to the body to load and run the new sketch
         document.body.appendChild(currentScriptTag);
-
-        // We need a way to get the new p5 instance to call remove() on it later.
-        // We can listen for a custom event that the sketch files will dispatch.
-        window.addEventListener(
-          'sketch-loaded',
-          (e) => {
-            currentSketchInstance = e.detail.p5;
-          },
-          { once: true }
-        );
       }
+
+      // Listen for the event to get both the p5 and editor instances.
+      window.addEventListener('sketch-loaded', (e) => {
+        currentP5Instance = e.detail.p5;
+        currentEditorInstance = e.detail.editor;
+      });
 
       exampleList.addEventListener('click', (e) => {
         if (e.target && e.target.nodeName === 'LI') {
           const scriptSrc = e.target.getAttribute('data-src');
           if (scriptSrc) {
-            // Update active class
             exampleList.querySelector('.active').classList.remove('active');
             e.target.classList.add('active');
-
             loadSketch(scriptSrc);
           }
         }

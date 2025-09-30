@@ -47,7 +47,9 @@ class ShapeClip extends ClipBase {
   render(p, relativeTime) {
     super.render(p, relativeTime);
 
-    p.fill(this.properties.fill); // TODO: Handle opacity
+    const c = p.color(this.properties.fill);
+    c.setAlpha(this.properties.opacity * 255);
+    p.fill(c);
     p.stroke(this.properties.stroke);
     p.strokeWeight(this.properties.strokeWeight);
 

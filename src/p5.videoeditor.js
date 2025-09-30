@@ -10,7 +10,8 @@ import ImageClip from './clips/ImageClip.js';
 import AudioClip from './clips/AudioClip.js';
 import VideoClip from './clips/VideoClip.js';
 import SlideShowClip from './clips/SlideShowClip.js';
-import GIF from 'gif.js/src/GIF';
+// The 'gif.js' library is expected to be loaded via a <script> tag,
+// making the `GIF` constructor globally available.
 import Exporter from './export/Exporter.js';
 import EffectBase from './effects/EffectBase.js';
 import TimelineUI from './ui/TimelineUI.js';
@@ -57,29 +58,30 @@ class VideoEditor {
    * @param {string} [options.gifWorkerPath=null] - The path to the 'gif.worker.js' file for GIF exporting.
    * @param {object} [options.performance] - Performance-related settings passed to the PerformanceManager.
    */
-  constructor(
-    p,
-    {
-      canvas = null,
-      uiContainer = null,
-      timelineUiContainer = null,
-      gifWorkerPath = './gif.worker.js', // Default path for the distributed worker file
-      ...options
-    } = {}
-  ) {
+  constructor(p, options = {}) {
     if (!p) {
       throw new Error(
         'A p5.js instance must be provided to the VideoEditor constructor.'
       );
     }
+
+    const {
+      canvas = null,
+      uiContainer = null,
+      timelineUiContainer = null,
+      gifWorkerPath = './gif.worker.js',
+    } = options;
+
     this.options = { gifWorkerPath };
-    this.timeline = new Timeline(p, canvas, options);
+    this.timeline = new Timeline(p, canvas, options); // Pass the whole options object
     this.playbackController = new PlaybackController(
       this.timeline,
       canvas,
       uiContainer
     );
-    this.performanceManager = new PerformanceManager(options.performance);
+    this.performanceManager = new PerformanceManager(
+      options.performance
+    );
     this.memoryManager = new MemoryManager();
 
     this.play = this.playbackController.play.bind(this.playbackController);
@@ -439,6 +441,92 @@ class VideoEditor {
    */
   showUserFriendlyError(error) {
     ErrorHandler.showUserFriendlyError(error);
+  }
+
+  /**
+   * Destroys the editor instance, cleaning up all associated resources.
+   * This includes stopping playback, removing UI elements, and releasing memory.
+   * This method should be called when the p5.js sketch is removed.
+   */
+  /**
+   * Creates a video clip and adds it to the timeline.
+   * @param {string} videoSrc - The source URL of the video file.
+   * @param {object} [options={}] - Configuration options for the VideoClip.
+   * @returns {VideoClip} The newly created VideoClip instance for chaining.
+   */
+  createVideoClip(videoSrc, options = {}) {
+    const clip = new VideoClip(videoSrc, options);
+    this.timeline.addClip(clip);
+    return clip;
+  }
+
+  /**
+   * Creates a slideshow clip and adds it to the timeline.
+   * @param {object} [options={}] - Configuration options for the SlideShowClip.
+   * @returns {SlideShowClip} The newly created SlideShowClip instance for chaining.
+   */
+  createSlideShowClip(options = {}) {
+    const clip = new SlideShowClip(options);
+    this.timeline.addClip(clip);
+    return clip;
+  }
+
+  /**
+   * Creates a text clip and adds it to the timeline.
+   * @param {string} text - The text content of the clip.
+   * @param {object} [options={}] - Configuration options for the TextClip.
+   * @returns {TextClip} The newly created TextClip instance for chaining.
+   */
+  createTextClip(text, options = {}) {
+    const clip = new TextClip(text, options);
+    this.timeline.addClip(clip);
+    return clip;
+  }
+
+  /**
+   * Creates a shape clip and adds it to the timeline.
+   * @param {string} shapeType - The type of shape to create (e.g., 'rect', 'circle').
+   * @param {object} [options={}] - Configuration options for the ShapeClip.
+   * @returns {ShapeClip} The newly created ShapeClip instance for chaining.
+   */
+  createShapeClip(shapeType, options = {}) {
+    const clip = new ShapeClip(shapeType, options);
+    this.timeline.addClip(clip);
+    return clip;
+  }
+
+  /**
+   * Creates an image clip and adds it to the timeline.
+   * @param {p5.Image} image - The preloaded p5.Image object.
+   * @param {object} [options={}] - Configuration options for the ImageClip.
+   * @returns {ImageClip} The newly created ImageClip instance for chaining.
+   */
+  createImageClip(image, options = {}) {
+    const clip = new ImageClip(image, options);
+    this.timeline.addClip(clip);
+    return clip;
+  }
+
+  /**
+   * Creates an audio clip and adds it to the timeline.
+   * @param {p5.SoundFile} soundFile - The preloaded p5.SoundFile object.
+   * @param {object} [options={}] - Configuration options for the AudioClip.
+   * @returns {AudioClip} The newly created AudioClip instance for chaining.
+   */
+  createAudioClip(soundFile, options = {}) {
+    const clip = new AudioClip(soundFile, options);
+    this.timeline.addClip(clip);
+    return clip;
+  }
+
+  destroy() {
+    this.pause(); // Stop any playback
+    if (this.playbackController) {
+      this.playbackController.destroy();
+    }
+    if (this.ui) {
+      this.ui.destroy();
+    }
   }
 }
 

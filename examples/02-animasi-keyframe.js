@@ -15,7 +15,7 @@ const sketch = (p) => {
       uiContainer: uiContainer,
     });
 
-    const shape = new ShapeClip('rect', {
+    const shape = editor.createShapeClip('rect', {
       start: 0,
       duration: 4000,
       properties: {
@@ -45,18 +45,18 @@ const sketch = (p) => {
     shape.addKeyframe('scale', 3000, 1.5);
     shape.addKeyframe('scale', 4000, 1);
 
-    editor.addClip(shape);
     editor.play();
 
+    // Notify the host page that the sketch is loaded, passing both p5 and editor instances.
     window.dispatchEvent(
-      new CustomEvent('sketch-loaded', { detail: { p5: p } })
+      new CustomEvent('sketch-loaded', { detail: { p5: p, editor: editor } })
     );
   };
 
-  p.draw = () => {
+  p.draw = async () => {
     p.background(50);
     editor.update(p);
-    editor.render(p);
+    await editor.render(p);
   };
 };
 

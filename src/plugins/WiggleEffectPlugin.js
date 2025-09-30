@@ -21,10 +21,10 @@ class WiggleEffect extends EffectBase {
 
   /**
    * Applies the wiggle effect by modifying the clip's x and y properties.
-   * @param {p5} p - The p5.js instance.
    * @param {ClipBase} clip - The clip to which the effect is being applied.
+   * @param {p5} p - The p5.js instance.
    */
-  apply(p, clip) {
+  apply(clip, p) {
     // Use the p5.js millis() function for a continuous time value, scaled by frequency.
     // Dividing by 1000 converts it to seconds for more manageable frequency values.
     const time = (p.millis() / 1000) * this.frequency;

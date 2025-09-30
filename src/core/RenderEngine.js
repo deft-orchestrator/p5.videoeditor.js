@@ -16,8 +16,9 @@ class RenderEngine {
     this.height = canvas.height;
 
     // Create off-screen graphics buffers for multi-pass rendering
-    this.sceneBuffer = p.createGraphics(this.width, this.height, p.WEBGL);
-    this.effectBuffer = p.createGraphics(this.width, this.height, p.WEBGL);
+    // Use the default 2D renderer to allow for simple text drawing without loading fonts.
+    this.sceneBuffer = p.createGraphics(this.width, this.height);
+    this.effectBuffer = p.createGraphics(this.width, this.height);
 
     this.shaders = {}; // Cache for compiled shaders
     this.shaderPromises = {}; // Cache for shader loading promises
@@ -83,10 +84,18 @@ class RenderEngine {
 
     for (const clip of standaloneClips) {
       const relativeTime = time - clip.start;
-      // Pass the RenderEngine instance to the apply method.
-      // CPU effects will draw to the buffer, while GPU effects will queue themselves.
+      // Pass the p5 instance to CPU effects, as they need access to p5 functions.
+      // GPU effects are handled differently and expect the RenderEngine instance.
       for (const effect of clip.effects) {
-        effect.apply(clip, this, relativeTime);
+        // This is a simple way to differentiate. A more robust solution might involve
+        // an `effect.type` property (e.g., 'cpu' or 'gpu').
+        if (typeof effect.getUniforms === 'function') {
+          // It's a GPU effect, pass the RenderEngine instance.
+          effect.apply(clip, this, relativeTime);
+        } else {
+          // It's a CPU effect, pass the p5 instance.
+          effect.apply(clip, this.p, relativeTime);
+        }
       }
       clip.render(this.sceneBuffer);
     }
